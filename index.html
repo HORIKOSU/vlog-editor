@@ -256,6 +256,7 @@
     <div class="result" id="resultBox">
       <video id="resultVideo" controls></video>
       <a class="download" id="downloadLink" download>完成した動画をダウンロード</a>
+      <div class="sort-status" id="downloadNameNote"></div>
     </div>
   </div>
 
@@ -317,6 +318,19 @@
   let clips = []; // {file, width, height, duration, speed}
   let ffmpeg = null;
   let engineLoaded = false;
+  let lastResultUrl = null; // 前回作成した動画のBlob URL（連続作成時に古いものを解放するため）
+
+  // ファイル名の拡張子の前に「_時分秒」を挿入する。連続して動画を作成した際に、
+  // 毎回同じファイル名でダウンロードされて前の動画を上書きしてしまわないようにするため。
+  function withTimeStamp(name){
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const m = /^(.*?)(\.[^.\/]+)?$/.exec(name || 'vlog_result.mp4');
+    const base = m[1] || 'vlog_result';
+    const ext = m[2] || '.mp4';
+    return `${base}_${stamp}${ext}`;
+  }
 
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
@@ -331,6 +345,7 @@
   const resultBox = document.getElementById('resultBox');
   const resultVideo = document.getElementById('resultVideo');
   const downloadLink = document.getElementById('downloadLink');
+  const downloadNameNote = document.getElementById('downloadNameNote');
   const sortByTimeBtn = document.getElementById('sortByTimeBtn');
   const sortStatus = document.getElementById('sortStatus');
   const autoFillCaptionBtn = document.getElementById('autoFillCaptionBtn');
@@ -761,9 +776,30 @@
           vfParts.push(buildTelopFilter(captionFile, target, letterboxBarHeight));
         }
 
-        const vf = vfParts.join(',');
         const afParts = [];
         if(speed !== 1) afParts.push(`atempo=${speed}`);
+
+        // クロスフェードを使わない場合、クリップの切り替わりが「パッ」と切り替わるハードカットになり、
+        // 唐突な印象になりやすい。そこで、クロスフェードを使わないときだけ、各クリップの前後に
+        // ごく短い暗転（フェードイン・フェードアウト）を入れて、切り替わりの唐突さを和らげる。
+        // （最初のクリップの先頭・最後のクリップの末尾は暗転させず、内側の境界だけに適用する）
+        const outputDur = clipDuration / speed;
+        if(!crossfadeEnabled){
+          const fadeDur = Math.min(0.2, outputDur / 4);
+          if(fadeDur > 0.01){
+            if(i > 0){
+              vfParts.push(`fade=t=in:st=0:d=${fadeDur.toFixed(3)}`);
+              afParts.push(`afade=t=in:st=0:d=${fadeDur.toFixed(3)}`);
+            }
+            if(i < total - 1){
+              const fadeOutStart = Math.max(0, outputDur - fadeDur);
+              vfParts.push(`fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDur.toFixed(3)}`);
+              afParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDur.toFixed(3)}`);
+            }
+          }
+        }
+
+        const vf = vfParts.join(',');
 
         // 「-t（切り出す長さ）」は -i より前の「入力オプション」として指定する。
         // こうすることで速度変化フィルタを使っても常に「素材から切り出す秒数」が一定になり、
@@ -778,7 +814,7 @@
         );
         await ffmpeg.exec(execArgs);
         outNames.push(outClipName);
-        outDurations.push(clipDuration / speed);
+        outDurations.push(outputDur);
 
         // 処理し終えた元動画・テロップ用一時ファイルは、メモリ解放のためすぐに削除する。
         // これをしないと全クリップの元データと出力データが処理完了までメモリに残り続け、
@@ -866,10 +902,22 @@
       const data = await ffmpeg.readFile(finalName);
       const blob = new Blob([data.buffer], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
+      try { await ffmpeg.deleteFile(finalName); } catch(e){ /* 削除失敗は無視して続行 */ }
+
+      // 連続して作成すると、毎回同じファイル名（例：vlog_result.mp4）でダウンロードされ、
+      // ブラウザ側の設定によっては前回保存したファイルが上書きされてしまうことがある。
+      // これを避けるため、実際にダウンロードされるファイル名には作成時刻（時分秒）を自動的に付与する
+      // （「出力ファイル名」欄に入力した文字自体は変更しない）。
+      if(lastResultUrl){
+        try { URL.revokeObjectURL(lastResultUrl); } catch(e){ /* 失敗しても無視 */ }
+      }
+      lastResultUrl = url;
+      const uniqueOutName = withTimeStamp(outName);
 
       resultVideo.src = url;
       downloadLink.href = url;
-      downloadLink.download = outName;
+      downloadLink.download = uniqueOutName;
+      downloadNameNote.textContent = `保存されるファイル名：${uniqueOutName}`;
       resultBox.style.display = 'block';
 
       progressFill.style.width = '100%';
