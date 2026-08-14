@@ -159,8 +159,8 @@
       <div class="field">
         <label>切り出し位置</label>
         <div class="radiogroup">
-          <label><input type="radio" name="position" value="start"><span>先頭から</span></label>
-          <label><input type="radio" name="position" value="middle" checked><span>中央から</span></label>
+          <label><input type="radio" name="position" value="start" checked><span>先頭から</span></label>
+          <label><input type="radio" name="position" value="middle"><span>中央から</span></label>
         </div>
       </div>
     </div>
@@ -168,8 +168,8 @@
       <div class="field">
         <label>色味スタイル</label>
         <select id="style">
-          <option value="vlog" selected>vlogチック（暖色・柔らかめ）</option>
-          <option value="cinematic">シネマティック（コントラスト強め）</option>
+          <option value="vlog">vlogチック（暖色・柔らかめ）</option>
+          <option value="cinematic" selected>シネマティック（コントラスト強め）</option>
           <option value="natural">無加工（色味調整なし）</option>
         </select>
       </div>
@@ -182,13 +182,13 @@
       <div class="field">
         <label>テロップデザイン</label>
         <select id="telopStyle">
-          <option value="simple" selected>シンプル（白文字＋黒フチ）</option>
+          <option value="simple">シンプル（白文字＋黒フチ）</option>
           <option value="subtitle">映画字幕風（下部・小さめ）</option>
-          <option value="cinema">映画風（フチなし・繊細）</option>
+          <option value="cinema" selected>映画風（フチなし・繊細）</option>
         </select>
       </div>
       <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="letterbox"><span>映画風レターボックス（上下に黒帯）を追加</span></label>
+        <label class="checkbox-field"><input type="checkbox" id="letterbox" checked><span>映画風レターボックス（上下に黒帯）を追加</span></label>
       </div>
     </div>
   </div>
@@ -199,8 +199,8 @@
       <div class="field">
         <label>出力フレームレート</label>
         <select id="fps">
-          <option value="30" selected>30fps（標準・処理は軽め）</option>
-          <option value="60">60fps（元素材が60fpsならなめらか・処理時間とファイルサイズが増加）</option>
+          <option value="30">30fps（標準・処理は軽め）</option>
+          <option value="60" selected>60fps（元素材が60fpsならなめらか・処理時間とファイルサイズが増加）</option>
         </select>
       </div>
       <div class="field">
@@ -214,15 +214,15 @@
     </div>
     <div class="row">
       <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="durationJitter"><span>各クリップの長さに少しランダムなブレを加える</span></label>
+        <label class="checkbox-field"><input type="checkbox" id="durationJitter" checked><span>各クリップの長さに少しランダムなブレを加える</span></label>
       </div>
       <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="filmGrain"><span>フィルムグレイン（粒子感）を加える</span></label>
+        <label class="checkbox-field"><input type="checkbox" id="filmGrain" checked><span>フィルムグレイン（粒子感）を加える</span></label>
       </div>
     </div>
     <div class="row">
       <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="vignette"><span>ヴィネット（周辺減光）を加える</span></label>
+        <label class="checkbox-field"><input type="checkbox" id="vignette" checked><span>ヴィネット（周辺減光）を加える</span></label>
       </div>
       <div class="field">
         <label class="checkbox-field"><input type="checkbox" id="crossfade"><span>クリップ間をクロスフェードでつなぐ（処理時間が増加）</span></label>
@@ -772,7 +772,7 @@
         if(afParts.length) execArgs.push('-af', afParts.join(','));
         execArgs.push(
           '-r', String(fps),
-          '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+          '-c:v', 'libx264', '-preset', 'superfast', '-crf', '20',
           '-c:a', 'aac', '-b:a', '128k',
           outClipName
         );
@@ -810,7 +810,7 @@
             '-filter_complex',
             `[0:v][1:v]xfade=transition=fade:duration=${crossDur.toFixed(3)}:offset=${offsetPos.toFixed(3)}[v];[0:a][1:a]acrossfade=d=${crossDur.toFixed(3)}[a]`,
             '-map', '[v]', '-map', '[a]',
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+            '-c:v', 'libx264', '-preset', 'superfast', '-crf', '20',
             '-c:a', 'aac', '-b:a', '128k',
             nextMerged
           ]);
