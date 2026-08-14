@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone動画 自動編集ツール（vlogチック）</title>
+<!-- ffmpeg.js / ffmpeg-util.js / 814.ffmpeg.js は同じフォルダ内に同梱しています。
+     このHTMLファイルと同じ場所にサーバー経由(http://localhost...)で置いて開く必要があります
+     (file://で直接開くと動作しません。使い方.mdを参照してください)。 -->
+<script src="./ffmpeg.js"></script>
+<script src="./ffmpeg-util.js"></script>
+<style>
+  :root{
+    --accent:#c1613e;
+    --accent-dark:#9c4c30;
+    --bg:#faf6f2;
+    --card:#ffffff;
+    --ink:#2b2420;
+    --sub:#8a7d72;
+    --line:#e8ddd3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 16px 80px;
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  }
+  .wrap{max-width:720px; margin:0 auto;}
+  h1{font-size:20px; margin:0 0 4px;}
+  .lead{color:var(--sub); font-size:13px; margin:0 0 28px; line-height:1.6;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px; margin-bottom:20px;
+  }
+  .card h2{font-size:14px; margin:0 0 14px; color:var(--accent-dark);}
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:28px 16px;
+    text-align:center; color:var(--sub); font-size:13px; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .drop.dragover{border-color:var(--accent); background:#fdf1ea;}
+  .drop input{display:none;}
+  ul#clipList{list-style:none; margin:16px 0 0; padding:0;}
+  ul#clipList li{
+    padding:8px 10px; border:1px solid var(--line); border-radius:10px;
+    margin-bottom:8px; font-size:13px; background:#fffdfb;
+  }
+  ul#clipList li .row1{display:flex; align-items:center; gap:10px;}
+  ul#clipList li .idx{
+    width:22px; height:22px; border-radius:50%; background:var(--accent);
+    color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  ul#clipList li .thumb{
+    width:56px; height:56px; border-radius:8px; overflow:hidden; flex-shrink:0;
+    background:#efe6dd; display:flex; align-items:center; justify-content:center;
+  }
+  ul#clipList li .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  ul#clipList li .thumb .thumb-loading{font-size:10px; color:var(--sub);}
+  ul#clipList li .name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  ul#clipList li .meta{color:var(--sub); font-size:11px; flex-shrink:0;}
+  ul#clipList li button{
+    border:none; background:none; cursor:pointer; color:var(--sub); font-size:14px;
+    padding:2px 6px; border-radius:6px;
+  }
+  ul#clipList li button:hover{background:var(--line);}
+  ul#clipList li .caption-row{margin-top:6px; display:flex; align-items:center; gap:6px;}
+  ul#clipList li .caption-row span{font-size:11px; color:var(--sub); flex-shrink:0;}
+  ul#clipList li .caption-row input, ul#clipList li .caption-row select{
+    flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:7px;
+    font-size:12px; background:#fff; color:var(--ink);
+  }
+  .row{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;}
+  .field{flex:1; min-width:140px;}
+  .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:6px;}
+  .field input[type=number], .field input[type=text], .field select{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:13px; background:#fff; color:var(--ink);
+  }
+  .radiogroup{display:flex; gap:10px;}
+  .radiogroup label{
+    flex:1; text-align:center; padding:9px 6px; border:1px solid var(--line);
+    border-radius:8px; font-size:12px; cursor:pointer; color:var(--sub);
+  }
+  .radiogroup input{display:none;}
+  .radiogroup input:checked + span{color:#fff;}
+  .radiogroup label:has(input:checked){background:var(--accent); border-color:var(--accent); color:#fff;}
+  .checkbox-field{
+    display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line);
+    border-radius:8px; cursor:pointer; font-size:12px; color:var(--ink);
+  }
+  .checkbox-field input{width:16px; height:16px; flex-shrink:0; accent-color:var(--accent);}
+  .estimate{font-size:12px; color:var(--sub); margin-top:4px;}
+  button.secondary{
+    margin-top:4px; padding:8px 14px; border:1px solid var(--accent); border-radius:8px;
+    background:#fff; color:var(--accent-dark); font-size:12px; font-weight:600; cursor:pointer;
+  }
+  button.secondary:hover:not(:disabled){background:#fdf1ea;}
+  button.secondary:disabled{opacity:.5; cursor:not-allowed;}
+  .sort-status{font-size:11px; color:var(--sub); margin-top:6px; min-height:14px;}
+  button.primary{
+    width:100%; padding:14px; border:none; border-radius:10px;
+    background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button.primary:disabled{background:#d8c7bb; cursor:not-allowed;}
+  button.primary:hover:not(:disabled){background:var(--accent-dark);}
+  .progress-wrap{margin-top:16px; display:none;}
+  .progress-bar{
+    height:8px; border-radius:6px; background:var(--line); overflow:hidden;
+  }
+  .progress-bar > div{height:100%; width:0%; background:var(--accent); transition:width .2s;}
+  .status{font-size:12px; color:var(--sub); margin-top:8px;}
+  details{margin-top:10px;}
+  details summary{font-size:12px; color:var(--sub); cursor:pointer;}
+  #log{
+    max-height:160px; overflow:auto; background:#2b2420; color:#e8ddd3;
+    font-size:11px; padding:10px; border-radius:8px; margin-top:6px; white-space:pre-wrap;
+  }
+  .result{display:none; margin-top:16px;}
+  .result video{width:100%; border-radius:10px; background:#000;}
+  .result a.download{
+    display:inline-block; margin-top:10px; padding:10px 18px; border-radius:8px;
+    background:var(--ink); color:#fff; text-decoration:none; font-size:13px;
+  }
+  .note{font-size:11px; color:var(--sub); line-height:1.7; margin-top:4px;}
+  .error{color:#b3402a; font-size:12px; margin-top:8px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>iPhone動画 自動編集ツール</h1>
+  <p class="lead">
+    動画をアップロードするだけで、指定秒数ずつ自動トリミング → vlogチックな色味を適用 → 1本に自動結合します。<br>
+    処理はすべてブラウザの中だけで行われ、動画データはどこにも送信されません。
+  </p>
+
+  <div class="card">
+    <h2>① 動画素材をアップロード</h2>
+    <div class="drop" id="dropZone">
+      ここに動画をドラッグ&ドロップ、またはクリックして選択（複数選択可）
+      <input type="file" id="fileInput" accept="video/*" multiple>
+    </div>
+    <ul id="clipList"></ul>
+    <button type="button" class="secondary" id="sortByTimeBtn">撮影時刻順に並び替え</button>
+    <div class="sort-status" id="sortStatus"></div>
+    <button type="button" class="secondary" id="autoFillCaptionBtn">撮影時刻をテロップに自動入力</button>
+    <div class="sort-status" id="fillStatus"></div>
+    <div class="estimate" id="estimate"></div>
+  </div>
+
+  <div class="card">
+    <h2>② 編集設定</h2>
+    <div class="row">
+      <div class="field">
+        <label>1クリップあたりの秒数</label>
+        <input type="number" id="duration" value="1.5" min="0.3" step="0.1">
+      </div>
+      <div class="field">
+        <label>切り出し位置</label>
+        <div class="radiogroup">
+          <label><input type="radio" name="position" value="start"><span>先頭から</span></label>
+          <label><input type="radio" name="position" value="middle" checked><span>中央から</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>色味スタイル</label>
+        <select id="style">
+          <option value="vlog" selected>vlogチック（暖色・柔らかめ）</option>
+          <option value="cinematic">シネマティック（コントラスト強め）</option>
+          <option value="natural">無加工（色味調整なし）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>出力ファイル名</label>
+        <input type="text" id="outName" value="vlog_result.mp4">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>テロップデザイン</label>
+        <select id="telopStyle">
+          <option value="simple" selected>シンプル（白文字＋黒フチ）</option>
+          <option value="subtitle">映画字幕風（下部・小さめ）</option>
+          <option value="cinema">映画風（フチなし・繊細）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="letterbox"><span>映画風レターボックス（上下に黒帯）を追加</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ 演出オプション（任意）</h2>
+    <div class="row">
+      <div class="field">
+        <label>出力フレームレート</label>
+        <select id="fps">
+          <option value="30" selected>30fps（標準・処理は軽め）</option>
+          <option value="60">60fps（元素材が60fpsならなめらか・処理時間とファイルサイズが増加）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>BGM音量</label>
+        <select id="bgmVolume">
+          <option value="0.15">小さめ</option>
+          <option value="0.3" selected>普通</option>
+          <option value="0.5">大きめ</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="durationJitter"><span>各クリップの長さに少しランダムなブレを加える</span></label>
+      </div>
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="filmGrain"><span>フィルムグレイン（粒子感）を加える</span></label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="vignette"><span>ヴィネット（周辺減光）を加える</span></label>
+      </div>
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="crossfade"><span>クリップ間をクロスフェードでつなぐ（処理時間が増加）</span></label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex-basis:100%;">
+        <label>BGM（任意・音楽ファイルをアップロード）</label>
+        <input type="file" id="bgmFile" accept="audio/*">
+      </div>
+    </div>
+    <div class="note">
+      ・各クリップの「テロップ」欄の下にある「速度」で、クリップごとにスロー／早送りを選べます。<br>
+      ・BGMを追加すると、元動画の音声に重ねて（消さずに）ループ再生されます。動画の最後の1秒はフェードアウトします。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>④ 作成</h2>
+    <button class="primary" id="runBtn">動画を作成する</button>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div id="progressFill"></div></div>
+      <div class="status" id="statusText"></div>
+      <details>
+        <summary>処理ログを表示</summary>
+        <div id="log"></div>
+      </details>
+    </div>
+    <div class="error" id="errorBox"></div>
+
+    <div class="result" id="resultBox">
+      <video id="resultVideo" controls></video>
+      <a class="download" id="downloadLink" download>完成した動画をダウンロード</a>
+    </div>
+  </div>
+
+  <p class="note">
+    ・初回実行時のみ、動画処理エンジン（約30MB）をインターネットからダウンロードします。以降はブラウザ内に保持されます。<br>
+    ・縦動画/横動画が混ざっている場合、多数派の向きに解像度をそろえます（少数派はセンタークロップされます）。<br>
+    ・「動きが大きい区間を自動検出」機能は未搭載です（切り出し位置は先頭 or 中央から選べます）。<br>
+    ・各クリップの「テロップ」欄に文字を入れると、そのクリップにテロップとして表示されます（空欄のクリップには表示されません）。フォントはM PLUS Rounded 1Cを使用しています。<br>
+    ・「テロップデザイン」で、シンプル・映画字幕風・映画風の3種類から選べます（全クリップ共通のデザインになります）。<br>
+    ・「撮影時刻をテロップに自動入力」を押すと、まだ文字が入っていないテロップ欄に撮影時刻を自動で入力します（動画に撮影日時の記録が必要です）。<br>
+    ・「映画風レターボックス」をオンにすると、上下に黒帯を追加してシネマスコープ風の見た目にします（横動画は2.35:1相当、縦動画は高さの12%ずつの帯）。<br>
+    ・処理し終えたクリップは順次メモリから解放するようにしているため、以前より長尺・大量のクリップでも処理しやすくなっています（それでもブラウザのメモリ上限はあるため、極端に大量・長尺の場合はエラーになることがあります）。<br>
+    ・「クロスフェードでつなぐ」をオンにすると、クリップ同士をつなぐたびに毎回動画を再エンコードするため、通常より処理時間が長くなります（クリップ数が多いほど顕著です）。<br>
+    ・速度変化・クロスフェード・BGMを使う場合、クリップの長さは短くなりすぎない範囲（目安1秒以上）にすることをおすすめします。<br>
+    ・Chrome / Edge / Safari（最新版）での利用を想定しています。
+  </p>
+
+</div>
+
+<script>
+(function(){
+  const STYLE_PRESETS = {
+    vlog: "eq=contrast=0.95:brightness=0.02:saturation=0.85,colorbalance=rm=0.06:gm=0.02:bm=-0.06:rs=0.04:gs=0.01:bs=-0.04,curves=master='0/0.02 0.25/0.28 0.75/0.74 1/0.98'",
+    cinematic: "eq=contrast=1.12:brightness=-0.01:saturation=0.9,colorbalance=rs=0.05:gs=0.0:bs=-0.05:rm=-0.02:bm=0.04,curves=master='0/0 0.2/0.15 0.8/0.85 1/1'",
+    natural: null
+  };
+  // テロップデザインごとに、drawtextフィルタ文字列を組み立てる関数。
+  // captionFile: テキストファイル名 / target: {width, height}（出力解像度、フォントサイズの基準に使う）
+  const TELOP_STYLES = {
+    // シンプル：白文字＋黒フチのみ。画面中央に表示する定番スタイル。
+    simple: (captionFile, target) => {
+      const fontSize = Math.round(target.height * 0.045);
+      const borderw = Math.max(2, Math.round(fontSize * 0.06));
+      return `drawtext=fontfile=font.ttf:textfile=${captionFile}:fontcolor=white:fontsize=${fontSize}:` +
+        `borderw=${borderw}:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2`;
+    },
+    // 映画字幕風：やや小さめの文字を、画面下部の半透明の黒帯の上に表示する。
+    // 「映画風レターボックス」がオンの場合は、黒帯の境界線をまたいで表示されてしまわないよう、
+    // 黒帯の中央に来るように位置を切り替える（黒帯がない場合は画面下端からの固定マージン）。
+    subtitle: (captionFile, target, letterboxBarHeight) => {
+      const fontSize = Math.round(target.height * 0.032);
+      const boxBorder = Math.round(fontSize * 0.35);
+      const bottomMargin = Math.round(target.height * 0.08);
+      const yExpr = (letterboxBarHeight && letterboxBarHeight > 0)
+        ? `h-${letterboxBarHeight}/2-text_h/2`
+        : `h-text_h-${bottomMargin}`;
+      return `drawtext=fontfile=font.ttf:textfile=${captionFile}:fontcolor=white:fontsize=${fontSize}:` +
+        `box=1:boxcolor=black@0.55:boxborderw=${boxBorder}:borderw=1:bordercolor=black@0.5:` +
+        `x=(w-text_w)/2:y=${yExpr}`;
+    },
+    // 映画風：フチなしの白文字＋影のみ。装飾を削ぎ落とした繊細な見た目。画面中央に表示。
+    cinema: (captionFile, target) => {
+      const fontSize = Math.round(target.height * 0.042);
+      return `drawtext=fontfile=font.ttf:textfile=${captionFile}:fontcolor=white:fontsize=${fontSize}:` +
+        `shadowcolor=black@0.6:shadowx=3:shadowy=3:x=(w-text_w)/2:y=(h-text_h)/2`;
+    },
+  };
+
+  let clips = []; // {file, width, height, duration, speed}
+  let ffmpeg = null;
+  let engineLoaded = false;
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const clipListEl = document.getElementById('clipList');
+  const estimateEl = document.getElementById('estimate');
+  const runBtn = document.getElementById('runBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressFill = document.getElementById('progressFill');
+  const statusText = document.getElementById('statusText');
+  const logEl = document.getElementById('log');
+  const errorBox = document.getElementById('errorBox');
+  const resultBox = document.getElementById('resultBox');
+  const resultVideo = document.getElementById('resultVideo');
+  const downloadLink = document.getElementById('downloadLink');
+  const sortByTimeBtn = document.getElementById('sortByTimeBtn');
+  const sortStatus = document.getElementById('sortStatus');
+  const autoFillCaptionBtn = document.getElementById('autoFillCaptionBtn');
+  const fillStatus = document.getElementById('fillStatus');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', () => {
+    addFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  function addFiles(fileList){
+    const arr = Array.from(fileList).filter(f => f.type.startsWith('video/'));
+    arr.forEach(file => {
+      const entry = { file, width: null, height: null, duration: null, caption: '', captureTime: undefined, thumbnail: null, speed: '1' };
+      clips.push(entry);
+      readVideoMeta(file).then(meta => {
+        entry.width = meta.width; entry.height = meta.height; entry.duration = meta.duration;
+        entry.thumbnail = meta.thumbnail;
+        renderList();
+      });
+    });
+    renderList();
+  }
+
+  // 動画の幅・高さ・長さに加えて、プレビュー用のサムネイル画像（先頭付近のフレームを切り出したもの）も取得する
+  function readVideoMeta(file){
+    return new Promise(resolve => {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.muted = true;
+      v.playsInline = true;
+      v.src = url;
+      let done = false;
+      const finish = (result) => {
+        if(done) return;
+        done = true;
+        URL.revokeObjectURL(url);
+        resolve(result);
+      };
+      const captureThumbnail = () => {
+        try {
+          const w = v.videoWidth || 1080, h = v.videoHeight || 1920;
+          const maxW = 160;
+          const canvas = document.createElement('canvas');
+          canvas.width = maxW;
+          canvas.height = Math.max(1, Math.round(h * (maxW / w)));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL('image/jpeg', 0.75);
+        } catch(e){
+          return null; // Canvasからの取得に失敗した場合はサムネイルなしで続行
+        }
+      };
+      v.onloadedmetadata = () => {
+        const duration = v.duration || 3;
+        const seekTo = Math.min(Math.max(duration * 0.1, 0.05), Math.max(duration - 0.05, 0));
+        try { v.currentTime = seekTo; } catch(e){ finish({ width: v.videoWidth||1080, height: v.videoHeight||1920, duration, thumbnail: null }); }
+      };
+      v.onseeked = () => {
+        const thumbnail = captureThumbnail();
+        finish({ width: v.videoWidth || 1080, height: v.videoHeight || 1920, duration: v.duration || 3, thumbnail });
+      };
+      v.onerror = () => { finish({ width: 1080, height: 1920, duration: 3, thumbnail: null }); };
+      // シークが発生しない環境向けの保険（数秒待っても反応がなければサムネイルなしで確定する）
+      setTimeout(() => finish({ width: v.videoWidth || 1080, height: v.videoHeight || 1920, duration: v.duration || 3, thumbnail: null }), 4000);
+    });
+  }
+
+  function renderList(){
+    clipListEl.innerHTML = '';
+    clips.forEach((c, i) => {
+      const li = document.createElement('li');
+      const metaText = c.duration ? `${c.width}x${c.height} / ${c.duration.toFixed(1)}s` : '読み込み中...';
+      li.innerHTML = `
+        <div class="row1">
+          <div class="idx">${i+1}</div>
+          <div class="thumb">${c.thumbnail ? `<img src="${c.thumbnail}" alt="サムネイル">` : '<span class="thumb-loading">…</span>'}</div>
+          <div class="name">${c.file.name}</div>
+          <div class="meta">${metaText}</div>
+          <button data-act="up" title="上に移動">▲</button>
+          <button data-act="down" title="下に移動">▼</button>
+          <button data-act="del" title="削除">✕</button>
+        </div>
+        <div class="caption-row">
+          <span>テロップ</span>
+          <input type="text" data-act="caption" placeholder="このクリップに入れる文字（空欄なら表示しません）">
+        </div>
+        <div class="caption-row">
+          <span>速度</span>
+          <select data-act="speed">
+            <option value="0.5">スロー (0.5x)</option>
+            <option value="0.75">やや遅め (0.75x)</option>
+            <option value="1" selected>等速 (1x)</option>
+            <option value="1.5">やや早送り (1.5x)</option>
+            <option value="2">早送り (2x)</option>
+          </select>
+        </div>
+      `;
+      li.querySelector('[data-act=up]').onclick = () => { if(i>0){ [clips[i-1],clips[i]]=[clips[i],clips[i-1]]; renderList(); } };
+      li.querySelector('[data-act=down]').onclick = () => { if(i<clips.length-1){ [clips[i+1],clips[i]]=[clips[i],clips[i+1]]; renderList(); } };
+      li.querySelector('[data-act=del]').onclick = () => { clips.splice(i,1); renderList(); };
+      const captionInput = li.querySelector('[data-act=caption]');
+      captionInput.value = c.caption || '';
+      captionInput.addEventListener('input', () => { c.caption = captionInput.value; });
+      const speedSelect = li.querySelector('[data-act=speed]');
+      speedSelect.value = c.speed || '1';
+      speedSelect.addEventListener('change', () => { c.speed = speedSelect.value; });
+      clipListEl.appendChild(li);
+    });
+    updateEstimate();
+  }
+
+  function updateEstimate(){
+    const dur = parseFloat(document.getElementById('duration').value) || 0;
+    if(clips.length === 0){ estimateEl.textContent = ''; return; }
+    const total = (clips.length * dur).toFixed(1);
+    const jitterOn = document.getElementById('durationJitter') && document.getElementById('durationJitter').checked;
+    estimateEl.textContent = `完成予想：${clips.length}本 × ${dur}秒 ＝ 約${total}秒${jitterOn ? '（ランダムなブレ・速度変化により前後します）' : ''}`;
+  }
+  document.getElementById('duration').addEventListener('input', updateEstimate);
+  document.getElementById('durationJitter').addEventListener('change', updateEstimate);
+
+  function log(msg){
+    const line = document.createElement('div');
+    line.textContent = msg;
+    logEl.appendChild(line);
+    while(logEl.childNodes.length > 300) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function decideTarget(metas){
+    const orientations = metas.map(m => m.height >= m.width ? 'portrait' : 'landscape');
+    const counts = {};
+    orientations.forEach(o => counts[o] = (counts[o]||0)+1);
+    const majority = Object.keys(counts).reduce((a,b)=> counts[a]>=counts[b]?a:b);
+    const matching = metas.filter((m,i) => orientations[i] === majority);
+    const resCounts = {};
+    matching.forEach(m => { const k = `${m.width}x${m.height}`; resCounts[k]=(resCounts[k]||0)+1; });
+    const keys = Object.keys(resCounts);
+    if(keys.length){
+      const best = keys.reduce((a,b)=> resCounts[a]>=resCounts[b]?a:b);
+      const [w,h] = best.split('x').map(Number);
+      return { width: w, height: h };
+    }
+    return majority === 'portrait' ? {width:1080,height:1920} : {width:1920,height:1080};
+  }
+
+  async function ensureEngineLoaded(){
+    if(engineLoaded) return;
+    statusText.textContent = 'エンジンを読み込み中...（初回のみ、数十秒かかる場合があります）';
+    const { FFmpeg } = FFmpegWASM;
+    const { toBlobURL } = FFmpegUtil;
+    ffmpeg = new FFmpeg();
+    ffmpeg.on('log', ({ message }) => log(message));
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+    // テロップ用フォント（M PLUS Rounded 1c）を仮想ファイルシステムに書き込んでおく
+    const { fetchFile } = FFmpegUtil;
+    await ffmpeg.writeFile('font.ttf', await fetchFile('./MPLUSRounded1c-Bold.ttf'));
+    engineLoaded = true;
+  }
+
+  function extOf(name){
+    const m = /\.([a-zA-Z0-9]+)$/.exec(name);
+    return m ? m[1].toLowerCase() : 'mp4';
+  }
+
+  // 動画ファイルに埋め込まれた撮影時刻(creation_time)を読み取る。
+  // iPhoneの動画はコンテナのメタデータに撮影日時が入っていることが多く、
+  // ffmpegが-iで読み込んだ際にログへ出力する情報からそれを拾う。
+  async function probeCreationTime(file){
+    const lines = [];
+    const handler = ({ message }) => lines.push(message);
+    ffmpeg.on('log', handler);
+    const { fetchFile } = FFmpegUtil;
+    const tmpName = `probe_tmp.${extOf(file.name)}`;
+    try {
+      await ffmpeg.writeFile(tmpName, await fetchFile(file));
+      await ffmpeg.exec(['-i', tmpName]);
+    } catch (e) {
+      // 出力を指定していないため必ずエラー終了するが、メタデータはログに出た後なので無視してよい
+    } finally {
+      ffmpeg.off('log', handler);
+      try { await ffmpeg.deleteFile(tmpName); } catch(e){ /* メモリ解放。削除失敗は無視して続行 */ }
+    }
+    const joined = lines.join('\n');
+    const m = /creation_time\s*:\s*(\S+)/i.exec(joined);
+    if(m){
+      const t = Date.parse(m[1]);
+      if(!isNaN(t)) return t;
+    }
+    return null;
+  }
+
+  // 動画ファイルの再生時間（秒）をffmpegのログから読み取る。BGM合成時に、
+  // 完成した動画の長さに合わせてBGMをトリム・フェードアウトさせるために使う。
+  async function probeDuration(name){
+    const lines = [];
+    const handler = ({ message }) => lines.push(message);
+    ffmpeg.on('log', handler);
+    try {
+      await ffmpeg.exec(['-i', name]);
+    } catch (e) {
+      // 出力を指定していないため必ずエラー終了するが、メタデータはログに出た後なので無視してよい
+    } finally {
+      ffmpeg.off('log', handler);
+    }
+    const joined = lines.join('\n');
+    const m = /Duration:\s*(\d+):(\d+):(\d+\.\d+)/i.exec(joined);
+    if(m){
+      return (parseInt(m[1],10) * 3600) + (parseInt(m[2],10) * 60) + parseFloat(m[3]);
+    }
+    return null;
+  }
+
+  // 撮影日時(ミリ秒)をテロップ用の短い文字列に整形する。
+  // 全クリップの撮影日が同じ場合は時刻のみ、日をまたぐ場合は月日も付ける。
+  function formatCaptureTime(ms, includeDate){
+    const d = new Date(ms);
+    const pad = n => String(n).padStart(2, '0');
+    const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return includeDate ? `${d.getMonth()+1}/${d.getDate()} ${hm}` : hm;
+  }
+
+  autoFillCaptionBtn.addEventListener('click', async () => {
+    if(clips.length === 0){
+      fillStatus.textContent = '先に動画をアップロードしてください。';
+      return;
+    }
+    autoFillCaptionBtn.disabled = true;
+    try {
+      await ensureEngineLoaded();
+      for(let i=0; i<clips.length; i++){
+        const c = clips[i];
+        fillStatus.textContent = `撮影時刻を確認中... (${i+1}/${clips.length})`;
+        if(c.captureTime === undefined){
+          c.captureTime = await probeCreationTime(c.file);
+        }
+      }
+      const detected = clips.map(c => c.captureTime).filter(t => t !== null && t !== undefined);
+      let includeDate = false;
+      if(detected.length > 1){
+        const d0 = new Date(detected[0]);
+        includeDate = !detected.every(t => {
+          const d = new Date(t);
+          return d.getFullYear()===d0.getFullYear() && d.getMonth()===d0.getMonth() && d.getDate()===d0.getDate();
+        });
+      }
+      let filled = 0;
+      clips.forEach(c => {
+        if(!c.caption.trim() && c.captureTime){
+          c.caption = formatCaptureTime(c.captureTime, includeDate);
+          filled++;
+        }
+      });
+      renderList();
+      if(filled > 0){
+        fillStatus.textContent = `${filled}本のテロップ欄に撮影時刻を自動入力しました（すでに文字が入っている欄は上書きしていません）。`;
+      } else if(detected.length === 0){
+        fillStatus.textContent = '撮影時刻を検出できませんでした（元の動画に撮影日時の記録がない可能性があります）。';
+      } else {
+        fillStatus.textContent = 'すべてのテロップ欄に既に文字が入力されているため、自動入力しませんでした。';
+      }
+    } catch(err){
+      console.error(err);
+      fillStatus.textContent = '自動入力中にエラーが発生しました（下の処理ログもご確認ください）。';
+    } finally {
+      autoFillCaptionBtn.disabled = false;
+    }
+  });
+
+  sortByTimeBtn.addEventListener('click', async () => {
+    if(clips.length < 2){
+      sortStatus.textContent = '並び替えには2本以上の動画が必要です。';
+      return;
+    }
+    sortByTimeBtn.disabled = true;
+    try {
+      await ensureEngineLoaded();
+      let detected = 0;
+      for(let i=0; i<clips.length; i++){
+        const c = clips[i];
+        sortStatus.textContent = `撮影時刻を確認中... (${i+1}/${clips.length})`;
+        if(c.captureTime === undefined){
+          c.captureTime = await probeCreationTime(c.file);
+        }
+        if(c.captureTime !== null) detected++;
+      }
+      clips.sort((a, b) => {
+        const ta = a.captureTime === null ? Infinity : a.captureTime;
+        const tb = b.captureTime === null ? Infinity : b.captureTime;
+        return ta - tb;
+      });
+      renderList();
+      if(detected === clips.length){
+        sortStatus.textContent = `${clips.length}本すべての撮影時刻を検出し、並び替えました。`;
+      } else if(detected === 0){
+        sortStatus.textContent = '撮影時刻を検出できませんでした（元の順番のままです）。';
+      } else {
+        sortStatus.textContent = `${clips.length}本中${detected}本の撮影時刻を検出して並び替えました（検出できなかった${clips.length - detected}本は末尾になっています）。`;
+      }
+    } catch(err){
+      console.error(err);
+      sortStatus.textContent = '並び替え中にエラーが発生しました（下の処理ログもご確認ください）。';
+    } finally {
+      sortByTimeBtn.disabled = false;
+    }
+  });
+
+  runBtn.addEventListener('click', async () => {
+    errorBox.style.display = 'none';
+    resultBox.style.display = 'none';
+    if(clips.length === 0){
+      errorBox.textContent = '動画を1本以上アップロードしてください。';
+      errorBox.style.display = 'block';
+      return;
+    }
+    const duration = parseFloat(document.getElementById('duration').value) || 1.5;
+    const position = document.querySelector('input[name=position]:checked').value;
+    const style = document.getElementById('style').value;
+    const styleFilter = STYLE_PRESETS[style];
+    const telopStyle = document.getElementById('telopStyle').value;
+    const outName = document.getElementById('outName').value.trim() || 'vlog_result.mp4';
+    const letterboxEnabled = document.getElementById('letterbox').checked;
+    const fps = parseInt(document.getElementById('fps').value, 10) || 30;
+    const jitterEnabled = document.getElementById('durationJitter').checked;
+    const filmGrainEnabled = document.getElementById('filmGrain').checked;
+    const vignetteEnabled = document.getElementById('vignette').checked;
+    const crossfadeEnabled = document.getElementById('crossfade').checked;
+    const bgmFile = document.getElementById('bgmFile').files[0] || null;
+    const bgmVolume = document.getElementById('bgmVolume').value;
+
+    runBtn.disabled = true;
+    progressWrap.style.display = 'block';
+    progressFill.style.width = '0%';
+    logEl.innerHTML = '';
+
+    try {
+      await ensureEngineLoaded();
+
+      const metas = clips.map(c => ({ width: c.width, height: c.height }));
+      const target = decideTarget(metas);
+      const total = clips.length;
+      const outNames = [];
+      const outDurations = []; // 各クリップの、速度変化を反映したあとの実際の再生時間（秒）
+
+      // 映画風レターボックス：上下に黒帯を足して、シネマスコープ風の見た目にする。
+      // 横動画は2.35:1のシネマスコープ比率に近づける帯の高さを計算し、
+      // 縦動画（vlog素材の主流）は帯を太くしすぎないよう高さの12%を目安に固定する。
+      let letterboxBarHeight = 0;
+      if(letterboxEnabled){
+        if(target.width > target.height){
+          const visibleHeight = target.width / 2.35;
+          letterboxBarHeight = Math.max(0, Math.round((target.height - visibleHeight) / 2));
+        } else {
+          letterboxBarHeight = Math.round(target.height * 0.12);
+        }
+      }
+
+      // 各クリップの「切り出す秒数」をここで確定させる。
+      // 「ランダムなブレ」がオンの場合、設定値を中心に±最大0.3秒（設定値の30%を上限）だけランダムにずらし、
+      // 均一すぎる機械的なカット感を軽減する。
+      const clipDurations = clips.map(() => {
+        if(!jitterEnabled) return duration;
+        const range = Math.min(0.3, duration * 0.3);
+        const jittered = duration + (Math.random() * 2 - 1) * range;
+        return Math.max(0.4, jittered);
+      });
+
+      for(let i=0; i<total; i++){
+        const c = clips[i];
+        statusText.textContent = `クリップを処理中... (${i+1}/${total})`;
+        progressFill.style.width = `${Math.round((i/(total+1))*100)}%`;
+
+        const inName = `in_${i}.${extOf(c.file.name)}`;
+        const outClipName = `out_${i}.mp4`;
+        const { fetchFile } = FFmpegUtil;
+        await ffmpeg.writeFile(inName, await fetchFile(c.file));
+
+        const clipDuration = clipDurations[i];
+        const dur = c.duration || clipDuration;
+        let offset = 0;
+        if(position === 'middle'){
+          offset = Math.max(0, (dur - clipDuration) / 2);
+        }
+        const speed = parseFloat(c.speed) || 1;
+
+        const vfParts = [
+          `scale=${target.width}:${target.height}:force_original_aspect_ratio=increase`,
+          `crop=${target.width}:${target.height}`,
+        ];
+        // 速度変化（スロー/早送り）はタイムスタンプを再計算するフィルタなので、
+        // 最終的なフレームレートに揃える fps= より前に置く。
+        if(speed !== 1){
+          vfParts.push(`setpts=PTS/${speed}`);
+        }
+        vfParts.push(`fps=${fps}`);
+        if(styleFilter) vfParts.push(styleFilter);
+        if(vignetteEnabled) vfParts.push('vignette=PI/4');
+        if(filmGrainEnabled) vfParts.push('noise=alls=12:allf=t+u');
+
+        // 映画風レターボックスの黒帯は、テロップより先に描画する。
+        // テロップ（特に「映画字幕風」は画面下部に表示するため）が黒帯と重なる位置に来ることがあり、
+        // 後から描く方が上に乗って隠れてしまうため、先に黒帯→後からテロップの順にして必ずテロップが見えるようにする。
+        if(letterboxBarHeight > 0){
+          vfParts.push(`drawbox=x=0:y=0:w=iw:h=${letterboxBarHeight}:color=black:t=fill`);
+          vfParts.push(`drawbox=x=0:y=ih-${letterboxBarHeight}:w=iw:h=${letterboxBarHeight}:color=black:t=fill`);
+        }
+
+        let captionFile = null;
+        const caption = (c.caption || '').trim();
+        if(caption){
+          captionFile = `caption_${i}.txt`;
+          await ffmpeg.writeFile(captionFile, new TextEncoder().encode(caption));
+          const buildTelopFilter = TELOP_STYLES[telopStyle] || TELOP_STYLES.simple;
+          vfParts.push(buildTelopFilter(captionFile, target, letterboxBarHeight));
+        }
+
+        const vf = vfParts.join(',');
+        const afParts = [];
+        if(speed !== 1) afParts.push(`atempo=${speed}`);
+
+        // 「-t（切り出す長さ）」は -i より前の「入力オプション」として指定する。
+        // こうすることで速度変化フィルタを使っても常に「素材から切り出す秒数」が一定になり、
+        // 出力の長さは切り出し秒数÷速度で自然に決まる（出力側で-tを掛けると速度変化と衝突してしまうため）。
+        const execArgs = ['-ss', offset.toFixed(3), '-t', clipDuration.toFixed(3), '-i', inName, '-vf', vf];
+        if(afParts.length) execArgs.push('-af', afParts.join(','));
+        execArgs.push(
+          '-r', String(fps),
+          '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+          '-c:a', 'aac', '-b:a', '128k',
+          outClipName
+        );
+        await ffmpeg.exec(execArgs);
+        outNames.push(outClipName);
+        outDurations.push(clipDuration / speed);
+
+        // 処理し終えた元動画・テロップ用一時ファイルは、メモリ解放のためすぐに削除する。
+        // これをしないと全クリップの元データと出力データが処理完了までメモリに残り続け、
+        // 長尺・大量のクリップを扱う際にメモリ上限（約2GB）に到達しやすくなるため。
+        try { await ffmpeg.deleteFile(inName); } catch(e){ /* 削除失敗は無視して続行 */ }
+        if(captionFile){
+          try { await ffmpeg.deleteFile(captionFile); } catch(e){ /* 削除失敗は無視して続行 */ }
+        }
+      }
+
+      statusText.textContent = '結合して書き出し中...';
+      progressFill.style.width = `${Math.round((total/(total+1))*100)}%`;
+
+      let finalName;
+      if(crossfadeEnabled && total > 1){
+        // クロスフェード：単純結合（concatデムクサー）はフェード処理と両立しないため、
+        // 2本ずつ順番にxfade/acrossfadeフィルタで再エンコードしながら合成していく。
+        // トランジションの長さは、一番短いクリップの再生時間の30%を目安に、0.15〜0.5秒の範囲に収める。
+        const minPlayback = Math.min(...outDurations);
+        const crossDur = Math.max(0.15, Math.min(0.5, minPlayback * 0.3));
+        let mergedName = outNames[0];
+        let cumulative = outDurations[0];
+        for(let i=1; i<outNames.length; i++){
+          statusText.textContent = `クロスフェードで結合中... (${i}/${outNames.length - 1})`;
+          const nextMerged = `merged_${i}.mp4`;
+          const offsetPos = Math.max(0, cumulative - crossDur);
+          await ffmpeg.exec([
+            '-i', mergedName, '-i', outNames[i],
+            '-filter_complex',
+            `[0:v][1:v]xfade=transition=fade:duration=${crossDur.toFixed(3)}:offset=${offsetPos.toFixed(3)}[v];[0:a][1:a]acrossfade=d=${crossDur.toFixed(3)}[a]`,
+            '-map', '[v]', '-map', '[a]',
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+            '-c:a', 'aac', '-b:a', '128k',
+            nextMerged
+          ]);
+          try { await ffmpeg.deleteFile(mergedName); } catch(e){ /* 削除失敗は無視して続行 */ }
+          try { await ffmpeg.deleteFile(outNames[i]); } catch(e){ /* 削除失敗は無視して続行 */ }
+          cumulative = cumulative + outDurations[i] - crossDur;
+          mergedName = nextMerged;
+        }
+        finalName = mergedName;
+      } else {
+        const listContent = outNames.map(n => `file '${n}'`).join('\n');
+        await ffmpeg.writeFile('concat_list.txt', new TextEncoder().encode(listContent));
+        await ffmpeg.exec(['-f','concat','-safe','0','-i','concat_list.txt','-c','copy','final_output.mp4']);
+
+        // 結合済みの各クリップも不要になったのでメモリから削除する
+        for(const n of outNames){
+          try { await ffmpeg.deleteFile(n); } catch(e){ /* 削除失敗は無視して続行 */ }
+        }
+        try { await ffmpeg.deleteFile('concat_list.txt'); } catch(e){ /* 削除失敗は無視して続行 */ }
+        finalName = 'final_output.mp4';
+      }
+
+      // BGM：アップロードされていれば、完成した動画の長さに合わせてループ・トリムし、
+      // 元の音声は消さずに指定音量で重ねる（最後の1秒はフェードアウト）。
+      if(bgmFile){
+        statusText.textContent = 'BGMを合成中...';
+        const totalDur = await probeDuration(finalName);
+        const { fetchFile } = FFmpegUtil;
+        const bgmInName = `bgm_in.${extOf(bgmFile.name)}`;
+        await ffmpeg.writeFile(bgmInName, await fetchFile(bgmFile));
+        const bgmFilterParts = [];
+        if(totalDur){
+          const fadeStart = Math.max(0, totalDur - 1);
+          bgmFilterParts.push(`[0:a]atrim=0:${totalDur.toFixed(3)},afade=t=out:st=${fadeStart.toFixed(3)}:d=1,volume=${bgmVolume}[bgm]`);
+        } else {
+          // 長さの取得に失敗した場合でも、amixのduration=firstが元動画の音声の長さに合わせて
+          // 自動的に切り詰めてくれるため、フェードアウトなしで続行する。
+          bgmFilterParts.push(`[0:a]volume=${bgmVolume}[bgm]`);
+        }
+        bgmFilterParts.push('[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=0[aout]');
+        await ffmpeg.exec([
+          '-stream_loop', '-1', '-i', bgmInName, '-i', finalName,
+          '-filter_complex', bgmFilterParts.join(';'),
+          '-map', '1:v', '-map', '[aout]',
+          '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k',
+          'final_with_bgm.mp4'
+        ]);
+        try { await ffmpeg.deleteFile(finalName); } catch(e){ /* 削除失敗は無視して続行 */ }
+        try { await ffmpeg.deleteFile(bgmInName); } catch(e){ /* 削除失敗は無視して続行 */ }
+        finalName = 'final_with_bgm.mp4';
+      }
+
+      const data = await ffmpeg.readFile(finalName);
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+
+      resultVideo.src = url;
+      downloadLink.href = url;
+      downloadLink.download = outName;
+      resultBox.style.display = 'block';
+
+      progressFill.style.width = '100%';
+      statusText.textContent = '完成しました！';
+    } catch(err){
+      console.error(err);
+      errorBox.textContent = 'エラーが発生しました: ' + (err && err.message ? err.message : String(err)) + '（下の処理ログもご確認ください）';
+      errorBox.style.display = 'block';
+      statusText.textContent = '処理を中断しました';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
