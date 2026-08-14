@@ -838,9 +838,30 @@
         }
         finalName = mergedName;
       } else {
+        // 単純結合（ハードカット）：
+        // 動画はコンテナレベルのストリームコピー（concatデムクサー）で高速に結合できるが、
+        // 音声は各クリップを個別にAACエンコードした際に生じる先頭の「プライミング」
+        // （エンコーダの遅延を補正するための、頭にわずかに付く負の時刻のサンプル。
+        // 元素材のサンプルレートによって長さが変わるため「素材によって」症状が出る）が、
+        // 単純なパケットコピーでは前のクリップの末尾に食い込んで重なってしまう。
+        // これが「切り替わりで音が前の素材に食い込んで流れる」症状の原因だったため、
+        // 音声だけは全クリップを一度デコードし、filter_complexのconcatフィルタで
+        // サンプル単位で正確につなぎ直してから単一のAACストリームとして再エンコードする
+        // （動画はストリームコピーのままなので処理時間への影響は小さい）。
         const listContent = outNames.map(n => `file '${n}'`).join('\n');
         await ffmpeg.writeFile('concat_list.txt', new TextEncoder().encode(listContent));
-        await ffmpeg.exec(['-f','concat','-safe','0','-i','concat_list.txt','-c','copy','final_output.mp4']);
+
+        const concatArgs = ['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt'];
+        outNames.forEach(n => { concatArgs.push('-i', n); });
+        const audioLabels = outNames.map((_, idx) => `[${idx + 1}:a]`).join('');
+        concatArgs.push(
+          '-filter_complex', `${audioLabels}concat=n=${outNames.length}:v=0:a=1[a]`,
+          '-map', '0:v', '-map', '[a]',
+          '-c:v', 'copy',
+          '-c:a', 'aac', '-b:a', '128k',
+          'final_output.mp4'
+        );
+        await ffmpeg.exec(concatArgs);
 
         // 結合済みの各クリップも不要になったのでメモリから削除する
         for(const n of outNames){
