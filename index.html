@@ -778,26 +778,7 @@
 
         const afParts = [];
         if(speed !== 1) afParts.push(`atempo=${speed}`);
-
-        // クロスフェードを使わない場合、クリップの切り替わりが「パッ」と切り替わるハードカットになり、
-        // 唐突な印象になりやすい。そこで、クロスフェードを使わないときだけ、各クリップの前後に
-        // ごく短い暗転（フェードイン・フェードアウト）を入れて、切り替わりの唐突さを和らげる。
-        // （最初のクリップの先頭・最後のクリップの末尾は暗転させず、内側の境界だけに適用する）
         const outputDur = clipDuration / speed;
-        if(!crossfadeEnabled){
-          const fadeDur = Math.min(0.2, outputDur / 4);
-          if(fadeDur > 0.01){
-            if(i > 0){
-              vfParts.push(`fade=t=in:st=0:d=${fadeDur.toFixed(3)}`);
-              afParts.push(`afade=t=in:st=0:d=${fadeDur.toFixed(3)}`);
-            }
-            if(i < total - 1){
-              const fadeOutStart = Math.max(0, outputDur - fadeDur);
-              vfParts.push(`fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDur.toFixed(3)}`);
-              afParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDur.toFixed(3)}`);
-            }
-          }
-        }
 
         const vf = vfParts.join(',');
 
