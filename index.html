@@ -733,7 +733,10 @@
         progressFill.style.width = `${Math.round((i/(total+1))*100)}%`;
 
         const inName = `in_${i}.${extOf(c.file.name)}`;
-        const outClipName = `out_${i}.mp4`;
+        // 音声を無圧縮（pcm_s16le）で保持する都合上、コンテナはmp4ではなくmatroska（.mkv）を使う
+        // （このwasm版ffmpegでは、pcm音声をmp4コンテナに書き込むとクラッシュする問題があったため）。
+        // これはあくまで処理途中の中間ファイルであり、最終的な書き出しファイルは通常のmp4になる。
+        const outClipName = `out_${i}.mkv`;
         const { fetchFile } = FFmpegUtil;
         await ffmpeg.writeFile(inName, await fetchFile(c.file));
 
@@ -784,13 +787,29 @@
 
         // 「-t（切り出す長さ）」は -i より前の「入力オプション」として指定する。
         // こうすることで速度変化フィルタを使っても常に「素材から切り出す秒数」が一定になり、
-        // 出力の長さは切り出し秒数÷速度で自然に決まる（出力側で-tを掛けると速度変化と衝突してしまうため）。
+        // 出力の長さは切り出し秒数÷速度で自然に決まる。
+        //
+        // 音声はこの時点ではAACではなく無圧縮（pcm_s16le）で書き出す。
+        // AACは1024サンプル単位でしか長さを表現できないため、クリップごとに個別でAAC化すると
+        // 「切り出したい秒数」と「実際にエンコードされた秒数」がクリップごとに数ms単位でずれてしまい、
+        // それが後段の結合でクリップ数に比例して積み重なり、クリップが増えるほど音声が
+        // どんどん先行・遅延していく原因になっていた。無圧縮で保持しておけばこの丸め誤差が
+        // 発生しないため、最終結合時に一度だけAACへエンコードする方式に変更している。
+        //
+        // さらに、fps=フィルタによるフレームレート変換（例：元素材の可変フレームレートを60fpsに揃える）は
+        // 端数フレームの丸め方の都合で、映像だけが狙った長さより1フレーム弱〜数十ミリ秒長く
+        // 出力されてしまうことがある。音声側にはこの丸め誤差が発生しないため、クリップ単体では
+        // 誤差はごくわずかでも、クリップ数が増えるほど「映像だけがどんどん音声より先行していく」
+        // ズレとして積み重なり、再生中ずっと映像と音声がズレて見える原因になっていた。
+        // これを防ぐため、出力側にも同じ長さの -t を明示的に指定し、映像・音声を必ずクリップの
+        // 狙った再生時間（outputDur）ぴったりで切り詰める。
         const execArgs = ['-ss', offset.toFixed(3), '-t', clipDuration.toFixed(3), '-i', inName, '-vf', vf];
         if(afParts.length) execArgs.push('-af', afParts.join(','));
         execArgs.push(
+          '-t', outputDur.toFixed(3),
           '-r', String(fps),
           '-c:v', 'libx264', '-preset', 'superfast', '-crf', '20',
-          '-c:a', 'aac', '-b:a', '128k',
+          '-c:a', 'pcm_s16le',
           outClipName
         );
         await ffmpeg.exec(execArgs);
@@ -820,7 +839,12 @@
         let cumulative = outDurations[0];
         for(let i=1; i<outNames.length; i++){
           statusText.textContent = `クロスフェードで結合中... (${i}/${outNames.length - 1})`;
-          const nextMerged = `merged_${i}.mp4`;
+          // マージ結果も各クリップと同じmatroska（.mkv）コンテナで保持する。
+          // xfade/acrossfadeフィルタは2つの入力映像のタイムベースが一致していないと
+          // エラーになるが、mp4とmatroskaではコンテナのデフォルトタイムベースが異なるため、
+          // 途中の結合結果をmp4にしてしまうと次のクリップ（.mkv）との結合で timebase不一致エラーになる。
+          // すべての中間ファイルをmatroskaに統一することでこれを避ける。
+          const nextMerged = `merged_${i}.mkv`;
           const offsetPos = Math.max(0, cumulative - crossDur);
           await ffmpeg.exec([
             '-i', mergedName, '-i', outNames[i],
@@ -836,7 +860,11 @@
           cumulative = cumulative + outDurations[i] - crossDur;
           mergedName = nextMerged;
         }
-        finalName = mergedName;
+        // 最終結果はmatroskaのままだと後段（BGM合成やダウンロード）でmp4として扱えないため、
+        // ストリームコピーで正式なmp4コンテナに詰め替える（再エンコードなしなので高速）。
+        await ffmpeg.exec(['-i', mergedName, '-c', 'copy', 'final_output.mp4']);
+        try { await ffmpeg.deleteFile(mergedName); } catch(e){ /* 削除失敗は無視して続行 */ }
+        finalName = 'final_output.mp4';
       } else {
         // 単純結合（ハードカット）：
         // 動画はコンテナレベルのストリームコピー（concatデムクサー）で高速に結合できるが、
