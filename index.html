@@ -40,7 +40,10 @@
   }
   .drop.dragover{border-color:var(--accent); background:#fdf1ea;}
   .drop input{display:none;}
-  ul#clipList{list-style:none; margin:16px 0 0; padding:0;}
+  ul#clipList{
+    list-style:none; margin:16px 0 0; padding:0 4px 0 0;
+    max-height:420px; overflow-y:auto;
+  }
   ul#clipList li{
     padding:8px 10px; border:1px solid var(--line); border-radius:10px;
     margin-bottom:8px; font-size:13px; background:#fffdfb;
@@ -255,6 +258,8 @@
 
     <div class="result" id="resultBox">
       <video id="resultVideo" controls></video>
+      <button type="button" class="primary" id="saveToPhotosBtn" style="display:none; margin-top:10px;">写真アプリに保存</button>
+      <div class="sort-status" id="saveToPhotosNote" style="display:none;">共有シートが開いたら「ビデオを保存」を選ぶと写真アプリに追加されます。</div>
       <a class="download" id="downloadLink" download>完成した動画をダウンロード</a>
       <div class="sort-status" id="downloadNameNote"></div>
     </div>
@@ -344,6 +349,8 @@
   const errorBox = document.getElementById('errorBox');
   const resultBox = document.getElementById('resultBox');
   const resultVideo = document.getElementById('resultVideo');
+  const saveToPhotosBtn = document.getElementById('saveToPhotosBtn');
+  const saveToPhotosNote = document.getElementById('saveToPhotosNote');
   const downloadLink = document.getElementById('downloadLink');
   const downloadNameNote = document.getElementById('downloadNameNote');
   const sortByTimeBtn = document.getElementById('sortByTimeBtn');
@@ -670,6 +677,8 @@
   runBtn.addEventListener('click', async () => {
     errorBox.style.display = 'none';
     resultBox.style.display = 'none';
+    saveToPhotosBtn.style.display = 'none';
+    saveToPhotosNote.style.display = 'none';
     if(clips.length === 0){
       errorBox.textContent = '動画を1本以上アップロードしてください。';
       errorBox.style.display = 'block';
@@ -752,14 +761,22 @@
           `scale=${target.width}:${target.height}:force_original_aspect_ratio=increase`,
           `crop=${target.width}:${target.height}`,
         ];
+        // 色味（style）とビネットは「その画素だけ」を見て色を変えるフィルタで、時間（前後のフレーム）には
+        // 依存しない。そのため fps= によるフレームレート変換（例：30fps素材を60fpsへ複製）より
+        // 先に適用しても仕上がりは変わらず、複製前の（数が少ない）フレームに対して1回だけ計算すれば済む分、
+        // 変換後の枚数に対して毎回計算しなおすより高速になる。クリップを大量に処理する場合の
+        // 処理時間短縮のため、意図的にこの順序にしている。
+        if(styleFilter) vfParts.push(styleFilter);
+        if(vignetteEnabled) vfParts.push('vignette=PI/4');
         // 速度変化（スロー/早送り）はタイムスタンプを再計算するフィルタなので、
         // 最終的なフレームレートに揃える fps= より前に置く。
         if(speed !== 1){
           vfParts.push(`setpts=PTS/${speed}`);
         }
         vfParts.push(`fps=${fps}`);
-        if(styleFilter) vfParts.push(styleFilter);
-        if(vignetteEnabled) vfParts.push('vignette=PI/4');
+        // フィルムグレインだけは「フレームごとに毎回違うノイズ乗る」ことに意味があるため、
+        // fps= より後（＝実際に書き出す全フレームそれぞれ）に適用する。ここを前に持ってきてしまうと、
+        // 複製されたフレーム同士が同じノイズパターンになり、粒状感が半分の頻度でしか変化しなくなる。
         if(filmGrainEnabled) vfParts.push('noise=alls=12:allf=t+u');
 
         // 映画風レターボックスの黒帯は、テロップより先に描画する。
@@ -808,7 +825,7 @@
         execArgs.push(
           '-t', outputDur.toFixed(3),
           '-r', String(fps),
-          '-c:v', 'libx264', '-preset', 'superfast', '-crf', '20',
+          '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20',
           '-c:a', 'pcm_s16le',
           outClipName
         );
@@ -851,7 +868,7 @@
             '-filter_complex',
             `[0:v][1:v]xfade=transition=fade:duration=${crossDur.toFixed(3)}:offset=${offsetPos.toFixed(3)}[v];[0:a][1:a]acrossfade=d=${crossDur.toFixed(3)}[a]`,
             '-map', '[v]', '-map', '[a]',
-            '-c:v', 'libx264', '-preset', 'superfast', '-crf', '20',
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20',
             '-c:a', 'aac', '-b:a', '128k',
             nextMerged
           ]);
@@ -949,6 +966,32 @@
       downloadLink.download = uniqueOutName;
       downloadNameNote.textContent = `保存されるファイル名：${uniqueOutName}`;
       resultBox.style.display = 'block';
+
+      // iPhone（iOS Safari）ではファイルを直接「ダウンロード」しても写真アプリには入らず、
+      // Filesアプリの「ダウンロード」フォルダに保存されてしまう。
+      // Web Share API（navigator.share）でファイルを共有できる環境（iOS Safariなど）では、
+      // 共有シートの「ビデオを保存」から直接カメラロール（写真アプリ）に保存できるため、
+      // 専用ボタンを用意する。対応していないブラウザ（多くのデスクトップ環境など）では
+      // このボタンは表示せず、従来通りのダウンロードリンクのみを使う。
+      try{
+        const shareFile = new File([blob], uniqueOutName, { type: 'video/mp4' });
+        if(navigator.canShare && navigator.canShare({ files: [shareFile] })){
+          saveToPhotosBtn.style.display = 'inline-block';
+          saveToPhotosBtn.onclick = async () => {
+            try{
+              await navigator.share({ files: [shareFile], title: uniqueOutName });
+              saveToPhotosNote.style.display = 'block';
+            }catch(e){
+              // ユーザーが共有シートをキャンセルした場合はエラー扱いにしない
+              if(e && e.name !== 'AbortError'){
+                console.error(e);
+              }
+            }
+          };
+        }
+      }catch(e){
+        // navigator.share自体がない環境（Web Share API未対応ブラウザ）は無視して続行
+      }
 
       progressFill.style.width = '100%';
       statusText.textContent = '完成しました！';
