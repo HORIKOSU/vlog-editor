@@ -213,10 +213,21 @@
           <option value="0.15">小さめ</option>
           <option value="0.3" selected>普通</option>
           <option value="0.5">大きめ</option>
+          <option value="0.7">とても大きめ</option>
         </select>
       </div>
     </div>
     <div class="row">
+      <div class="field">
+        <label>元動画の音量（BGMと合成するとき）</label>
+        <select id="origVolumeWithBgm">
+          <option value="1" selected>通常（変更しない）</option>
+          <option value="0.7">少し小さめ</option>
+          <option value="0.5">小さめ</option>
+          <option value="0.3">かなり小さめ</option>
+          <option value="0">元動画の音を消す（BGMのみにする）</option>
+        </select>
+      </div>
       <div class="field">
         <label class="checkbox-field"><input type="checkbox" id="durationJitter" checked><span>各クリップの長さに少しランダムなブレを加える</span></label>
       </div>
@@ -234,13 +245,21 @@
     </div>
     <div class="row">
       <div class="field" style="flex-basis:100%;">
-        <label>BGM（任意・音楽ファイルをアップロード）</label>
-        <input type="file" id="bgmFile" accept="audio/*">
+        <label>BGM（任意）</label>
+        <select id="bgmPreset">
+          <option value="">プリセットを使わない（下のアップロード欄を使う）</option>
+          <option value="./bgm/bgm1_kpop_emo.mp3">プリセット：エモいギター（K-POP/BTS風）</option>
+          <option value="./bgm/bgm2_lofi.mp3">プリセット：Lo-Fiな雰囲気</option>
+          <option value="./bgm/bgm3_organic.mp3">プリセット：オーガニックで感動的（泣ける系）</option>
+        </select>
+        <input type="file" id="bgmFile" accept="audio/*" style="margin-top:8px;">
       </div>
     </div>
     <div class="note">
       ・各クリップの「テロップ」欄の下にある「速度」で、クリップごとにスロー／早送りを選べます。<br>
-      ・BGMを追加すると、元動画の音声に重ねて（消さずに）ループ再生されます。動画の最後の1秒はフェードアウトします。
+      ・BGMを追加すると、元動画の音声に重ねて（消さずに）ループ再生されます。動画の最後の1秒はフェードアウトします。<br>
+      ・プリセットを選ぶと、下のアップロード欄は使われません（自分のファイルを使う場合はプリセットを「プリセットを使わない」に戻してください）。<br>
+      ・BGMが元動画の音に埋もれて聞こえにくい場合は、「BGM音量」を上げるか「元動画の音量（BGMと合成するとき）」を下げてバランスを調整してください（BGMを使わない場合はこの設定は影響しません）。
     </div>
   </div>
 
@@ -345,6 +364,16 @@
   const sortStatus = document.getElementById('sortStatus');
   const autoFillCaptionBtn = document.getElementById('autoFillCaptionBtn');
   const fillStatus = document.getElementById('fillStatus');
+  const bgmPresetSelect = document.getElementById('bgmPreset');
+  const bgmFileInput = document.getElementById('bgmFile');
+
+  // プリセットBGMを選んだら、アップロード欄は使わない（優先はプリセット）ことが
+  // わかるように、アップロード欄を無効化＆クリアする。
+  bgmPresetSelect.addEventListener('change', () => {
+    const usingPreset = bgmPresetSelect.value !== '';
+    bgmFileInput.disabled = usingPreset;
+    if(usingPreset) bgmFileInput.value = '';
+  });
 
   dropZone.addEventListener('click', () => fileInput.click());
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
@@ -713,8 +742,14 @@
     const filmGrainEnabled = document.getElementById('filmGrain').checked;
     const vignetteEnabled = document.getElementById('vignette').checked;
     const crossfadeEnabled = document.getElementById('crossfade').checked;
+    // BGMは「プリセット（同フォルダ内のmp3を選択式で使う）」と
+    // 「アップロード（自分の音声ファイル）」のどちらか一方を使う。プリセットが
+    // 選ばれていればそちらを優先する。
+    const bgmPresetPath = bgmPresetSelect.value || '';
     const bgmFile = document.getElementById('bgmFile').files[0] || null;
+    const bgmSource = bgmPresetPath || bgmFile;
     const bgmVolume = document.getElementById('bgmVolume').value;
+    const origVolumeWithBgm = document.getElementById('origVolumeWithBgm').value;
 
     runBtn.disabled = true;
     progressWrap.style.display = 'block';
@@ -981,14 +1016,19 @@
         finalName = 'final_output.mp4';
       }
 
-      // BGM：アップロードされていれば、完成した動画の長さに合わせてループ・トリムし、
-      // 元の音声は消さずに指定音量で重ねる（最後の1秒はフェードアウト）。
-      if(bgmFile){
+      // BGM：プリセット選択かアップロードのいずれかが指定されていれば、完成した
+      // 動画の長さに合わせてループ・トリムし、元の音声は消さずに指定音量で重ねる
+      // （最後の1秒はフェードアウト）。
+      if(bgmSource){
         statusText.textContent = 'BGMを合成中...';
         const totalDur = await probeDuration(finalName);
         const { fetchFile } = FFmpegUtil;
-        const bgmInName = `bgm_in.${extOf(bgmFile.name)}`;
-        await ffmpeg.writeFile(bgmInName, await fetchFile(bgmFile));
+        // プリセット（文字列のパス）ならその拡張子、アップロードされたファイルなら
+        // そのファイル名の拡張子を使う。fetchFileは文字列パスの場合はfetch()で、
+        // File/Blobの場合はFileReaderで読み込んでくれる。
+        const bgmExt = typeof bgmSource === 'string' ? extOf(bgmSource) : extOf(bgmSource.name);
+        const bgmInName = `bgm_in.${bgmExt}`;
+        await ffmpeg.writeFile(bgmInName, await fetchFile(bgmSource));
         const bgmFilterParts = [];
         if(totalDur){
           const fadeStart = Math.max(0, totalDur - 1);
@@ -998,7 +1038,11 @@
           // 自動的に切り詰めてくれるため、フェードアウトなしで続行する。
           bgmFilterParts.push(`[0:a]volume=${bgmVolume}[bgm]`);
         }
-        bgmFilterParts.push('[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=0[aout]');
+        // 元動画の音量をBGMとのバランスに応じて調整する（BGMが元動画の音に
+        // 埋もれて聞こえない、という声を受けて追加）。既定値の1（変更しない）の
+        // 場合はvolume=1をかけるだけで実質的に何も変わらない。
+        bgmFilterParts.push(`[1:a]volume=${origVolumeWithBgm}[orig]`);
+        bgmFilterParts.push('[orig][bgm]amix=inputs=2:duration=first:dropout_transition=0[aout]');
         await ffmpeg.exec([
           '-stream_loop', '-1', '-i', bgmInName, '-i', finalName,
           '-filter_complex', bgmFilterParts.join(';'),
