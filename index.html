@@ -521,28 +521,69 @@
   }
 
   // 動画ファイルに埋め込まれた撮影時刻(creation_time)を読み取る。
-  // iPhoneの動画はコンテナのメタデータに撮影日時が入っていることが多く、
-  // ffmpegが-iで読み込んだ際にログへ出力する情報からそれを拾う。
+  // iPhoneの動画はコンテナ(MP4/MOV)の moov > mvhd ボックスに撮影日時が
+  // バイナリで記録されているため、ここを直接パースして値を取り出す。
+  // （以前はffmpegに-iを実行させてログ出力の文字列から拾っていたが、
+  //   ログがワーカーから非同期に届く都合で稀に取りこぼし/前回分の混入が起こり、
+  //   実行するたびに検出結果がブレる原因になっていた。バイナリを直接読む
+  //   ことで、この非同期ログ解析を経由せず常に同じ結果になるようにした。）
   async function probeCreationTime(file){
-    const lines = [];
-    const handler = ({ message }) => lines.push(message);
-    ffmpeg.on('log', handler);
-    const { fetchFile } = FFmpegUtil;
-    const tmpName = `probe_tmp.${extOf(file.name)}`;
     try {
-      await ffmpeg.writeFile(tmpName, await fetchFile(file));
-      await ffmpeg.exec(['-i', tmpName]);
-    } catch (e) {
-      // 出力を指定していないため必ずエラー終了するが、メタデータはログに出た後なので無視してよい
-    } finally {
-      ffmpeg.off('log', handler);
-      try { await ffmpeg.deleteFile(tmpName); } catch(e){ /* メモリ解放。削除失敗は無視して続行 */ }
+      const buf = await file.arrayBuffer();
+      const dv = new DataView(buf);
+      const mvhd = findMp4Box(dv, 0, buf.byteLength, ['moov', 'mvhd']);
+      if(!mvhd) return null;
+      const { offset } = mvhd;
+      const version = dv.getUint8(offset);
+      let creationTimeSec;
+      if(version === 1){
+        const hi = dv.getUint32(offset + 4);
+        const lo = dv.getUint32(offset + 8);
+        creationTimeSec = hi * 4294967296 + lo;
+      } else {
+        creationTimeSec = dv.getUint32(offset + 4);
+      }
+      if(!creationTimeSec) return null;
+      // MP4/MOVのタイムスタンプは1904-01-01からの経過秒（Mac epoch）。
+      // Unix epoch(1970-01-01)との差は2082844800秒。
+      const MAC_EPOCH_OFFSET_SEC = 2082844800;
+      const unixMs = (creationTimeSec - MAC_EPOCH_OFFSET_SEC) * 1000;
+      if(!isFinite(unixMs) || unixMs <= 0) return null;
+      return unixMs;
+    } catch(e){
+      return null;
     }
-    const joined = lines.join('\n');
-    const m = /creation_time\s*:\s*(\S+)/i.exec(joined);
-    if(m){
-      const t = Date.parse(m[1]);
-      if(!isNaN(t)) return t;
+  }
+
+  // MP4/MOVのボックス（アトム）構造を辿って、指定したパス（例: ['moov','mvhd']）
+  // に一致するボックスの中身の位置を返す。見つからない場合はnull。
+  function findMp4Box(dv, start, end, path){
+    let offset = start;
+    while(offset + 8 <= end){
+      let size = dv.getUint32(offset);
+      const type = String.fromCharCode(
+        dv.getUint8(offset+4), dv.getUint8(offset+5), dv.getUint8(offset+6), dv.getUint8(offset+7)
+      );
+      let headerSize = 8;
+      if(size === 1){
+        // 64bit拡張サイズ（largesize）
+        const hi = dv.getUint32(offset+8);
+        const lo = dv.getUint32(offset+12);
+        size = hi * 4294967296 + lo;
+        headerSize = 16;
+      } else if(size === 0){
+        // サイズ0はファイル（または親ボックス）の末尾まで続くことを意味する
+        size = end - offset;
+      }
+      if(size < headerSize || offset + size > end) break;
+      if(type === path[0]){
+        if(path.length === 1){
+          return { offset: offset + headerSize, size: size - headerSize };
+        }
+        const inner = findMp4Box(dv, offset + headerSize, offset + size, path.slice(1));
+        if(inner) return inner;
+      }
+      offset += size;
     }
     return null;
   }
@@ -582,7 +623,6 @@
     }
     autoFillCaptionBtn.disabled = true;
     try {
-      await ensureEngineLoaded();
       for(let i=0; i<clips.length; i++){
         const c = clips[i];
         fillStatus.textContent = `撮影時刻を確認中... (${i+1}/${clips.length})`;
@@ -621,7 +661,6 @@
     }
     sortByTimeBtn.disabled = true;
     try {
-      await ensureEngineLoaded();
       let detected = 0;
       for(let i=0; i<clips.length; i++){
         const c = clips[i];
@@ -682,6 +721,35 @@
     progressFill.style.width = '0%';
     logEl.innerHTML = '';
 
+    // クリップ処理中の「残り時間目安」の1秒タイマー。try/catch/finallyのどこからでも
+    // 確実に止められるよう、try節の外（この関数のトップレベル）で管理する。
+    let countdownTimer = null;
+    let countdownRemainingMs = 0;
+    let countdownLabelPrefix = '';
+    const renderCountdown = () => {
+      const label = countdownRemainingMs > 0 ? `　残り目安：約${formatEstimate(countdownRemainingMs)}` : '';
+      statusText.textContent = `${countdownLabelPrefix}${label}`;
+    };
+    const startCountdown = (initialMs, labelPrefix) => {
+      if(countdownTimer) clearInterval(countdownTimer);
+      countdownRemainingMs = initialMs;
+      countdownLabelPrefix = labelPrefix;
+      renderCountdown();
+      countdownTimer = setInterval(() => {
+        countdownRemainingMs = Math.max(0, countdownRemainingMs - 1000);
+        renderCountdown();
+      }, 1000);
+    };
+    const stopCountdown = () => {
+      if(countdownTimer){ clearInterval(countdownTimer); countdownTimer = null; }
+    };
+    const formatEstimate = (ms) => {
+      const totalSec = Math.max(0, Math.round(ms / 1000));
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return min > 0 ? `${min}分${sec}秒` : `${sec}秒`;
+    };
+
     try {
       await ensureEngineLoaded();
 
@@ -718,20 +786,21 @@
       // 記録しておき、その平均 × 残りクリップ数でざっくり見積もる。
       // 動画の解像度・設定によって1本あたりの時間は変わるため、最初の数本の実測値を使うことで
       // その回ごとの実際の処理速度に合わせた見積もりになる（1本目が終わるまでは表示なし）。
+      // 見積もり秒数はクリップが完了するたびに再計算するだけでなく、1秒タイマーで見た目上も
+      // 1秒ずつ減っていくようにして、実際に時間が進んでいる感覚が伝わるようにしている
+      // （countdownTimer本体はtry節の外で管理しているため、ここでは開始・停止のみ行う）。
       const clipElapsedTimes = [];
-      const formatEstimate = (ms) => {
-        const totalSec = Math.max(1, Math.round(ms / 1000));
-        const min = Math.floor(totalSec / 60);
-        const sec = totalSec % 60;
-        return min > 0 ? `${min}分${sec}秒` : `${sec}秒`;
-      };
 
       for(let i=0; i<total; i++){
         const c = clips[i];
-        const remainingLabel = clipElapsedTimes.length > 0
-          ? `　残り目安：約${formatEstimate((clipElapsedTimes.reduce((a,b)=>a+b,0) / clipElapsedTimes.length) * (total - i))}`
-          : '';
-        statusText.textContent = `クリップを処理中... (${i+1}/${total})${remainingLabel}`;
+        const labelPrefix = `クリップを処理中... (${i+1}/${total})`;
+        if(clipElapsedTimes.length > 0){
+          const avgClipMs = clipElapsedTimes.reduce((a,b)=>a+b,0) / clipElapsedTimes.length;
+          startCountdown(avgClipMs * (total - i), labelPrefix);
+        } else {
+          stopCountdown();
+          statusText.textContent = labelPrefix;
+        }
         progressFill.style.width = `${Math.round((i/(total+1))*100)}%`;
         const clipStartedAt = Date.now();
 
@@ -836,6 +905,7 @@
           try { await ffmpeg.deleteFile(captionFile); } catch(e){ /* 削除失敗は無視して続行 */ }
         }
       }
+      stopCountdown();
 
       statusText.textContent = '結合して書き出し中...';
       progressFill.style.width = `${Math.round((total/(total+1))*100)}%`;
@@ -996,6 +1066,7 @@
       errorBox.style.display = 'block';
       statusText.textContent = '処理を中断しました';
     } finally {
+      stopCountdown();
       runBtn.disabled = false;
     }
   });
