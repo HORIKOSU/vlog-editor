@@ -14,16 +14,16 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --accent:#e8623a;
-    --accent-dark:#c94f2a;
-    --accent-soft:#fbe6da;
-    --bg:#faf5ef;
+    --accent:#c1613e;
+    --accent-dark:#9c4c30;
+    --accent-soft:#f3e2d8;
+    --bg:#faf6f2;
     --card:#ffffff;
     --ink:#2b2420;
-    --sub:#8f7e6d;
-    --line:#ece1d3;
+    --sub:#8a7d72;
+    --line:#e8ddd3;
     --thumb-bg:#f2ece3;
-    --shadow:0 8px 20px rgba(201,79,42,.10);
+    --shadow:0 8px 20px rgba(193,97,62,.10);
   }
   *{box-sizing:border-box;}
   body{
@@ -97,12 +97,12 @@
   .radiogroup input:checked + span{color:#fff;}
   .radiogroup label:has(input:checked){background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:var(--shadow);}
   .checkbox-field{
-    display:flex; align-items:center; gap:10px; padding:11px 14px; border:1.5px solid var(--line);
-    border-radius:14px; cursor:pointer; font-size:12px; color:var(--ink); font-weight:600;
+    display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1.5px solid var(--line);
+    border-radius:14px; cursor:pointer; font-size:12.5px; line-height:1.6; color:var(--ink); font-weight:600;
     background:#fff; transition:background .15s, border-color .15s;
   }
   .checkbox-field:has(input:checked){background:var(--accent-soft); border-color:var(--accent);}
-  .checkbox-field input{width:18px; height:18px; flex-shrink:0; accent-color:var(--accent);}
+  .checkbox-field input{width:18px; height:18px; margin-top:2px; flex-shrink:0; accent-color:var(--accent);}
   .subhead{
     font-size:12px; font-weight:800; color:var(--accent-dark); margin:0 0 10px;
     padding-top:16px; border-top:1px solid var(--line);
