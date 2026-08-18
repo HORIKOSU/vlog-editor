@@ -568,13 +568,11 @@
     return null;
   }
 
-  // 撮影日時(ミリ秒)をテロップ用の短い文字列に整形する。
-  // 全クリップの撮影日が同じ場合は時刻のみ、日をまたぐ場合は月日も付ける。
-  function formatCaptureTime(ms, includeDate){
+  // 撮影日時(ミリ秒)をテロップ用の短い文字列に整形する（時刻のみ。日付は含めない）。
+  function formatCaptureTime(ms){
     const d = new Date(ms);
     const pad = n => String(n).padStart(2, '0');
-    const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    return includeDate ? `${d.getMonth()+1}/${d.getDate()} ${hm}` : hm;
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   autoFillCaptionBtn.addEventListener('click', async () => {
@@ -593,18 +591,10 @@
         }
       }
       const detected = clips.map(c => c.captureTime).filter(t => t !== null && t !== undefined);
-      let includeDate = false;
-      if(detected.length > 1){
-        const d0 = new Date(detected[0]);
-        includeDate = !detected.every(t => {
-          const d = new Date(t);
-          return d.getFullYear()===d0.getFullYear() && d.getMonth()===d0.getMonth() && d.getDate()===d0.getDate();
-        });
-      }
       let filled = 0;
       clips.forEach(c => {
         if(!c.caption.trim() && c.captureTime){
-          c.caption = formatCaptureTime(c.captureTime, includeDate);
+          c.caption = formatCaptureTime(c.captureTime);
           filled++;
         }
       });
