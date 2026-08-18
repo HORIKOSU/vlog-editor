@@ -29,6 +29,12 @@
   body{
     margin:0; padding:32px 16px 80px;
     background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  }
+  /* 見出し・ボタンなど大きめの文字だけ丸みのあるフォントを使う。
+     本文・ラベルなど小さな文字は、日本語（特に漢字）が潰れて見えにくくなるのを
+     避けるため、OS標準のフォントのままにしている。 */
+  h1, h2, .subhead, button.primary, button.secondary{
     font-family:"M PLUS Rounded 1c",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
   }
   .wrap{max-width:720px; margin:0 auto;}
@@ -116,7 +122,7 @@
   button.secondary{
     margin-top:6px; padding:12px 20px; border:2px solid var(--accent); border-radius:999px;
     background:#fff; color:var(--accent-dark); font-size:13px; font-weight:800; cursor:pointer;
-    font-family:inherit; transition:background .15s, transform .1s;
+    transition:background .15s, transform .1s;
   }
   button.secondary:hover:not(:disabled){background:var(--accent-soft);}
   button.secondary:active:not(:disabled){transform:scale(.97);}
@@ -125,7 +131,7 @@
   button.primary{
     width:100%; padding:20px; border:none; border-radius:999px;
     background:var(--accent); color:#fff; font-size:17px; font-weight:800; cursor:pointer;
-    font-family:inherit; box-shadow:0 12px 26px rgba(255,122,69,.32);
+    box-shadow:0 12px 26px rgba(255,122,69,.32);
     transition:background .15s, transform .1s;
   }
   button.primary:disabled{background:#f2d9c7; box-shadow:none; cursor:not-allowed;}
@@ -281,7 +287,6 @@
       </div>
     </div>
     <div class="note">
-      ・各クリップの「テロップ」欄の下にある「速度」で、クリップごとにスロー／早送りを選べます。<br>
       ・BGMを追加すると、元動画の音声に重ねて（消さずに）ループ再生されます。動画の最後の1秒はフェードアウトします。<br>
       ・プリセットを選ぶと、下のアップロード欄は使われません（自分のファイルを使う場合はプリセットを「プリセットを使わない」に戻してください）。<br>
       ・BGMが元動画の音に埋もれて聞こえにくい場合は、「BGM音量」を上げるか「元動画の音量（BGMと合成するとき）」を下げてバランスを調整してください（BGMを使わない場合はこの設定は影響しません）。
