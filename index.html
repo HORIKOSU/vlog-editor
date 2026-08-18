@@ -724,10 +724,26 @@
         return Math.max(0.4, jittered);
       });
 
+      // クリップ処理中の「残り時間目安」を出すため、処理済みクリップ1本あたりの実測時間を
+      // 記録しておき、その平均 × 残りクリップ数でざっくり見積もる。
+      // 動画の解像度・設定によって1本あたりの時間は変わるため、最初の数本の実測値を使うことで
+      // その回ごとの実際の処理速度に合わせた見積もりになる（1本目が終わるまでは表示なし）。
+      const clipElapsedTimes = [];
+      const formatEstimate = (ms) => {
+        const totalSec = Math.max(1, Math.round(ms / 1000));
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return min > 0 ? `${min}分${sec}秒` : `${sec}秒`;
+      };
+
       for(let i=0; i<total; i++){
         const c = clips[i];
-        statusText.textContent = `クリップを処理中... (${i+1}/${total})`;
+        const remainingLabel = clipElapsedTimes.length > 0
+          ? `　残り目安：約${formatEstimate((clipElapsedTimes.reduce((a,b)=>a+b,0) / clipElapsedTimes.length) * (total - i))}`
+          : '';
+        statusText.textContent = `クリップを処理中... (${i+1}/${total})${remainingLabel}`;
         progressFill.style.width = `${Math.round((i/(total+1))*100)}%`;
+        const clipStartedAt = Date.now();
 
         const inName = `in_${i}.${extOf(c.file.name)}`;
         // 音声を無圧縮（pcm_s16le）で保持する都合上、コンテナはmp4ではなくmatroska（.mkv）を使う
@@ -820,6 +836,7 @@
         await ffmpeg.exec(execArgs);
         outNames.push(outClipName);
         outDurations.push(outputDur);
+        clipElapsedTimes.push(Date.now() - clipStartedAt);
 
         // 処理し終えた元動画・テロップ用一時ファイルは、メモリ解放のためすぐに削除する。
         // これをしないと全クリップの元データと出力データが処理完了までメモリに残り続け、
