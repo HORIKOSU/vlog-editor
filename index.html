@@ -9,135 +9,162 @@
      (file://で直接開くと動作しません。使い方.mdを参照してください)。 -->
 <script src="./ffmpeg.js"></script>
 <script src="./ffmpeg-util.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --accent:#c1613e;
-    --accent-dark:#9c4c30;
-    --bg:#faf6f2;
+    --accent:#e8623a;
+    --accent-dark:#c94f2a;
+    --accent-soft:#fbe6da;
+    --bg:#faf5ef;
     --card:#ffffff;
     --ink:#2b2420;
-    --sub:#8a7d72;
-    --line:#e8ddd3;
+    --sub:#8f7e6d;
+    --line:#ece1d3;
+    --thumb-bg:#f2ece3;
+    --shadow:0 8px 20px rgba(201,79,42,.10);
   }
   *{box-sizing:border-box;}
   body{
     margin:0; padding:32px 16px 80px;
     background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+    font-family:"M PLUS Rounded 1c",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
   }
   .wrap{max-width:720px; margin:0 auto;}
-  h1{font-size:20px; margin:0 0 4px;}
-  .lead{color:var(--sub); font-size:13px; margin:0 0 28px; line-height:1.6;}
+  h1{font-size:22px; margin:0 0 6px; font-weight:800;}
+  .lead{color:var(--sub); font-size:13px; margin:0 0 28px; line-height:1.7;}
   .card{
-    background:var(--card); border:1px solid var(--line); border-radius:16px;
-    padding:22px; margin-bottom:20px;
+    background:var(--card); border:1px solid var(--line); border-radius:26px;
+    padding:24px; margin-bottom:22px; box-shadow:var(--shadow);
   }
-  .card h2{font-size:14px; margin:0 0 14px; color:var(--accent-dark);}
+  .card h2{font-size:15px; margin:0 0 16px; color:var(--accent-dark); font-weight:800;}
   .drop{
-    border:2px dashed var(--line); border-radius:12px; padding:28px 16px;
+    border:2.5px dashed #f4c9a8; border-radius:22px; padding:32px 16px;
     text-align:center; color:var(--sub); font-size:13px; cursor:pointer;
+    background:#fffdfa;
     transition:border-color .15s, background .15s;
   }
-  .drop.dragover{border-color:var(--accent); background:#fdf1ea;}
+  .drop.dragover{border-color:var(--accent); background:var(--accent-soft);}
   .drop input{display:none;}
   ul#clipList{
     list-style:none; margin:16px 0 0; padding:0 4px 0 0;
     max-height:420px; overflow-y:auto;
   }
   ul#clipList li{
-    padding:8px 10px; border:1px solid var(--line); border-radius:10px;
-    margin-bottom:8px; font-size:13px; background:#fffdfb;
+    padding:10px 12px; border:1px solid var(--line); border-radius:18px;
+    margin-bottom:10px; font-size:13px; background:#fffdfb;
   }
   ul#clipList li .row1{display:flex; align-items:center; gap:10px;}
   ul#clipList li .idx{
-    width:22px; height:22px; border-radius:50%; background:var(--accent);
-    color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:50%; background:var(--accent);
+    color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
   ul#clipList li .thumb{
-    width:56px; height:56px; border-radius:8px; overflow:hidden; flex-shrink:0;
-    background:#efe6dd; display:flex; align-items:center; justify-content:center;
+    width:56px; height:56px; border-radius:14px; overflow:hidden; flex-shrink:0;
+    background:var(--thumb-bg); display:flex; align-items:center; justify-content:center;
   }
   ul#clipList li .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
   ul#clipList li .thumb .thumb-loading{font-size:10px; color:var(--sub);}
   ul#clipList li .name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   ul#clipList li .meta{color:var(--sub); font-size:11px; flex-shrink:0;}
   ul#clipList li button{
-    border:none; background:none; cursor:pointer; color:var(--sub); font-size:14px;
-    padding:2px 6px; border-radius:6px;
+    border:none; background:none; cursor:pointer; color:var(--sub); font-size:16px;
+    padding:4px 8px; border-radius:10px;
   }
-  ul#clipList li button:hover{background:var(--line);}
-  ul#clipList li .caption-row{margin-top:6px; display:flex; align-items:center; gap:6px;}
+  ul#clipList li button:hover{background:var(--accent-soft); color:var(--accent-dark);}
+  ul#clipList li .caption-row{margin-top:8px; display:flex; align-items:center; gap:6px;}
   ul#clipList li .caption-row span{font-size:11px; color:var(--sub); flex-shrink:0;}
   ul#clipList li .caption-row input, ul#clipList li .caption-row select{
-    flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:7px;
-    font-size:12px; background:#fff; color:var(--ink);
+    flex:1; padding:7px 10px; border:1.5px solid var(--line); border-radius:12px;
+    font-size:12px; background:#fff; color:var(--ink); font-family:inherit;
   }
   .row{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;}
   .field{flex:1; min-width:140px;}
-  .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:6px;}
+  .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:6px; font-weight:700;}
   .field input[type=number], .field input[type=text], .field select{
-    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
-    font-size:13px; background:#fff; color:var(--ink);
+    width:100%; padding:11px 14px; border:1.5px solid var(--line); border-radius:14px;
+    font-size:13px; background:#fff; color:var(--ink); font-family:inherit;
   }
   .radiogroup{display:flex; gap:10px;}
   .radiogroup label{
-    flex:1; text-align:center; padding:9px 6px; border:1px solid var(--line);
-    border-radius:8px; font-size:12px; cursor:pointer; color:var(--sub);
+    flex:1; text-align:center; padding:11px 6px; border:1.5px solid var(--line);
+    border-radius:14px; font-size:12px; cursor:pointer; color:var(--sub); font-weight:600;
+    transition:background .15s, border-color .15s, color .15s;
   }
   .radiogroup input{display:none;}
   .radiogroup input:checked + span{color:#fff;}
-  .radiogroup label:has(input:checked){background:var(--accent); border-color:var(--accent); color:#fff;}
+  .radiogroup label:has(input:checked){background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:var(--shadow);}
   .checkbox-field{
-    display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line);
-    border-radius:8px; cursor:pointer; font-size:12px; color:var(--ink);
+    display:flex; align-items:center; gap:10px; padding:11px 14px; border:1.5px solid var(--line);
+    border-radius:14px; cursor:pointer; font-size:12px; color:var(--ink); font-weight:600;
+    background:#fff; transition:background .15s, border-color .15s;
   }
-  .checkbox-field input{width:16px; height:16px; flex-shrink:0; accent-color:var(--accent);}
-  .estimate{font-size:12px; color:var(--sub); margin-top:4px;}
+  .checkbox-field:has(input:checked){background:var(--accent-soft); border-color:var(--accent);}
+  .checkbox-field input{width:18px; height:18px; flex-shrink:0; accent-color:var(--accent);}
+  .subhead{
+    font-size:12px; font-weight:800; color:var(--accent-dark); margin:0 0 10px;
+    padding-top:16px; border-top:1px solid var(--line);
+  }
+  .card > .subhead:first-of-type, .card h2 + .subhead{padding-top:0; border-top:none;}
+  .toggle-grid{
+    display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:14px;
+  }
+  .toggle-grid .checkbox-field{height:100%;}
+  .estimate{font-size:12px; color:var(--sub); margin-top:6px;}
   button.secondary{
-    margin-top:4px; padding:8px 14px; border:1px solid var(--accent); border-radius:8px;
-    background:#fff; color:var(--accent-dark); font-size:12px; font-weight:600; cursor:pointer;
+    margin-top:6px; padding:12px 20px; border:2px solid var(--accent); border-radius:999px;
+    background:#fff; color:var(--accent-dark); font-size:13px; font-weight:800; cursor:pointer;
+    font-family:inherit; transition:background .15s, transform .1s;
   }
-  button.secondary:hover:not(:disabled){background:#fdf1ea;}
+  button.secondary:hover:not(:disabled){background:var(--accent-soft);}
+  button.secondary:active:not(:disabled){transform:scale(.97);}
   button.secondary:disabled{opacity:.5; cursor:not-allowed;}
-  .sort-status{font-size:11px; color:var(--sub); margin-top:6px; min-height:14px;}
+  .sort-status{font-size:11px; color:var(--sub); margin-top:8px; min-height:14px;}
   button.primary{
-    width:100%; padding:14px; border:none; border-radius:10px;
-    background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+    width:100%; padding:20px; border:none; border-radius:999px;
+    background:var(--accent); color:#fff; font-size:17px; font-weight:800; cursor:pointer;
+    font-family:inherit; box-shadow:0 12px 26px rgba(255,122,69,.32);
+    transition:background .15s, transform .1s;
   }
-  button.primary:disabled{background:#d8c7bb; cursor:not-allowed;}
+  button.primary:disabled{background:#f2d9c7; box-shadow:none; cursor:not-allowed;}
   button.primary:hover:not(:disabled){background:var(--accent-dark);}
-  .progress-wrap{margin-top:16px; display:none;}
+  button.primary:active:not(:disabled){transform:scale(.98);}
+  .progress-wrap{margin-top:18px; display:none;}
   .progress-bar{
-    height:8px; border-radius:6px; background:var(--line); overflow:hidden;
+    height:12px; border-radius:999px; background:var(--accent-soft); overflow:hidden;
   }
-  .progress-bar > div{height:100%; width:0%; background:var(--accent); transition:width .2s;}
-  .status{font-size:12px; color:var(--sub); margin-top:8px;}
+  .progress-bar > div{height:100%; width:0%; background:var(--accent); border-radius:999px; transition:width .2s;}
+  .status{font-size:12px; color:var(--sub); margin-top:10px; font-weight:600;}
   details{margin-top:10px;}
   details summary{font-size:12px; color:var(--sub); cursor:pointer;}
   #log{
-    max-height:160px; overflow:auto; background:#2b2420; color:#e8ddd3;
-    font-size:11px; padding:10px; border-radius:8px; margin-top:6px; white-space:pre-wrap;
+    max-height:160px; overflow:auto; background:#3a2e26; color:#f3e3d3;
+    font-size:11px; padding:12px; border-radius:16px; margin-top:6px; white-space:pre-wrap;
   }
-  .result{display:none; margin-top:16px;}
-  .result video{width:100%; border-radius:10px; background:#000;}
+  .result{display:none; margin-top:18px;}
+  .result video{width:100%; border-radius:20px; background:#000;}
   .result a.download{
-    display:inline-block; margin-top:10px; padding:10px 18px; border-radius:8px;
-    background:var(--ink); color:#fff; text-decoration:none; font-size:13px;
+    display:inline-block; margin-top:12px; padding:14px 26px; border-radius:999px;
+    background:var(--ink); color:#fff; text-decoration:none; font-size:14px; font-weight:800;
   }
-  .note{font-size:11px; color:var(--sub); line-height:1.7; margin-top:4px;}
-  .error{color:#b3402a; font-size:12px; margin-top:8px; display:none;}
+  .note{font-size:11px; color:var(--sub); line-height:1.8; margin-top:6px;}
+  .error{color:#e6612e; font-size:12px; margin-top:8px; display:none; font-weight:700;}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <h1>iPhone動画 自動編集ツール</h1>
-  <p class="lead">
-    動画をアップロードするだけで、指定秒数ずつ自動トリミング → vlogチックな色味を適用 → 1本に自動結合します。<br>
-    処理はすべてブラウザの中だけで行われ、動画データはどこにも送信されません。<br>
-    一度に最大50本程度までアップロード可能です（本数が多いほど書き出しに時間がかかり、目安として50本で20〜30分程度）。
+  <p class="lead" style="margin-bottom:14px;">
+    動画をアップロードするだけで、指定秒数ずつ自動トリミング → vlogチックな色味を適用 → 1本に自動結合します。
   </p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:28px;">
+    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🔒 処理はブラウザ内だけで完結</span>
+    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🎞 最大50本まで対応</span>
+    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">⏱ 50本で目安20〜30分</span>
+  </div>
 
   <div class="card">
     <h2>① 動画素材をアップロード</h2>
@@ -199,6 +226,8 @@
 
   <div class="card">
     <h2>③ 演出オプション（任意）</h2>
+
+    <div class="subhead">基本設定</div>
     <div class="row">
       <div class="field">
         <label>出力フレームレート</label>
@@ -207,6 +236,30 @@
           <option value="60" selected>60fps（元素材が60fpsならなめらか・処理時間とファイルサイズが増加）</option>
         </select>
       </div>
+    </div>
+
+    <div class="subhead">映像エフェクト</div>
+    <div class="toggle-grid">
+      <label class="checkbox-field"><input type="checkbox" id="durationJitter" checked><span>各クリップの長さに少しランダムなブレを加える</span></label>
+      <label class="checkbox-field"><input type="checkbox" id="filmGrain" checked><span>フィルムグレイン（粒子感）を加える</span></label>
+      <label class="checkbox-field"><input type="checkbox" id="vignette" checked><span>ヴィネット（周辺減光）を加える</span></label>
+      <label class="checkbox-field"><input type="checkbox" id="crossfade"><span>クリップ間をクロスフェードでつなぐ（処理時間が増加）</span></label>
+    </div>
+
+    <div class="subhead">BGM（音楽・任意）</div>
+    <div class="row">
+      <div class="field" style="flex-basis:100%;">
+        <label>BGMの選び方</label>
+        <select id="bgmPreset">
+          <option value="">プリセットを使わない（下のアップロード欄を使う）</option>
+          <option value="./bgm/bgm1_kpop_emo.mp3">プリセット：エモいギター（K-POP/BTS風）</option>
+          <option value="./bgm/bgm2_lofi.mp3">プリセット：Lo-Fiな雰囲気</option>
+          <option value="./bgm/bgm3_organic.mp3">プリセット：オーガニックで感動的（泣ける系）</option>
+        </select>
+        <input type="file" id="bgmFile" accept="audio/*" style="margin-top:8px;">
+      </div>
+    </div>
+    <div class="row">
       <div class="field">
         <label>BGM音量</label>
         <select id="bgmVolume">
@@ -216,8 +269,6 @@
           <option value="0.7">とても大きめ</option>
         </select>
       </div>
-    </div>
-    <div class="row">
       <div class="field">
         <label>元動画の音量（BGMと合成するとき）</label>
         <select id="origVolumeWithBgm">
@@ -227,32 +278,6 @@
           <option value="0.3">かなり小さめ</option>
           <option value="0">元動画の音を消す（BGMのみにする）</option>
         </select>
-      </div>
-      <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="durationJitter" checked><span>各クリップの長さに少しランダムなブレを加える</span></label>
-      </div>
-      <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="filmGrain" checked><span>フィルムグレイン（粒子感）を加える</span></label>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="vignette" checked><span>ヴィネット（周辺減光）を加える</span></label>
-      </div>
-      <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="crossfade"><span>クリップ間をクロスフェードでつなぐ（処理時間が増加）</span></label>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field" style="flex-basis:100%;">
-        <label>BGM（任意）</label>
-        <select id="bgmPreset">
-          <option value="">プリセットを使わない（下のアップロード欄を使う）</option>
-          <option value="./bgm/bgm1_kpop_emo.mp3">プリセット：エモいギター（K-POP/BTS風）</option>
-          <option value="./bgm/bgm2_lofi.mp3">プリセット：Lo-Fiな雰囲気</option>
-          <option value="./bgm/bgm3_organic.mp3">プリセット：オーガニックで感動的（泣ける系）</option>
-        </select>
-        <input type="file" id="bgmFile" accept="audio/*" style="margin-top:8px;">
       </div>
     </div>
     <div class="note">
