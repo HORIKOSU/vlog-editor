@@ -118,6 +118,16 @@
     display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:14px;
   }
   .toggle-grid .checkbox-field{height:100%;}
+  .tips-list{display:flex; flex-direction:column; gap:10px;}
+  .tip-item{
+    display:flex; align-items:center; gap:12px; padding:12px 14px;
+    border:1.5px solid var(--line); border-radius:14px; background:#fffdfb;
+  }
+  .tip-icon{
+    width:30px; height:30px; border-radius:50%; background:var(--accent-soft);
+    font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .tip-text{font-size:13px; color:var(--ink); font-weight:600; line-height:1.6;}
   .estimate{font-size:12px; color:var(--sub); margin-top:6px;}
   button.secondary{
     margin-top:6px; padding:12px 20px; border:2px solid var(--accent); border-radius:999px;
@@ -170,6 +180,24 @@
     <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🔒 処理はブラウザ内だけで完結</span>
     <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🎞 最大50本まで対応</span>
     <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">⏱ 50本で目安20〜30分</span>
+  </div>
+
+  <div class="card">
+    <h2>📸 撮影のポイント</h2>
+    <div class="tips-list">
+      <div class="tip-item">
+        <div class="tip-icon">🔭</div>
+        <div class="tip-text">広角で撮影する</div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">⏱</div>
+        <div class="tip-text">3秒間立ち止まって、動くものを撮影する</div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🚶</div>
+        <div class="tip-text">ゆっくり歩いて、カメラは同じ方角のまま撮影する</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
