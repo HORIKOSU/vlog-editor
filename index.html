@@ -449,7 +449,7 @@
   function addFiles(fileList){
     const arr = Array.from(fileList).filter(f => f.type.startsWith('video/'));
     arr.forEach(file => {
-      const entry = { file, width: null, height: null, duration: null, caption: '', captureTime: undefined, thumbnail: null, speed: '1' };
+      const entry = { file, width: null, height: null, duration: null, caption: '', memo: '', captureTime: undefined, thumbnail: null, speed: '1' };
       clips.push(entry);
       readVideoMeta(file).then(meta => {
         entry.width = meta.width; entry.height = meta.height; entry.duration = meta.duration;
@@ -525,6 +525,10 @@
           <input type="text" data-act="caption" placeholder="このクリップに入れる文字（空欄なら表示しません）">
         </div>
         <div class="caption-row">
+          <span>メモ</span>
+          <input type="text" data-act="memo" placeholder="撮影時刻とは別に、好きな文字を追加できます（テロップの下にもう1行として表示）">
+        </div>
+        <div class="caption-row">
           <span>速度</span>
           <select data-act="speed">
             <option value="0.5">スロー (0.5x)</option>
@@ -541,6 +545,9 @@
       const captionInput = li.querySelector('[data-act=caption]');
       captionInput.value = c.caption || '';
       captionInput.addEventListener('input', () => { c.caption = captionInput.value; });
+      const memoInput = li.querySelector('[data-act=memo]');
+      memoInput.value = c.memo || '';
+      memoInput.addEventListener('input', () => { c.memo = memoInput.value; });
       const speedSelect = li.querySelector('[data-act=speed]');
       speedSelect.value = c.speed || '1';
       speedSelect.addEventListener('change', () => { c.speed = speedSelect.value; });
@@ -944,7 +951,9 @@
         }
 
         let captionFile = null;
-        const caption = (c.caption || '').trim();
+        // 「テロップ」（撮影時刻の自動入力にも使う欄）と「メモ」（それとは別に自由入力する欄）は
+        // 両方入力されていれば2行として、片方だけなら1行として表示する。
+        const caption = [c.caption, c.memo].map(t => (t || '').trim()).filter(Boolean).join('\n');
         if(caption){
           captionFile = `caption_${i}.txt`;
           await ffmpeg.writeFile(captionFile, new TextEncoder().encode(caption));
