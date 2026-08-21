@@ -209,7 +209,7 @@
     <ul id="clipList"></ul>
     <button type="button" class="secondary" id="sortByTimeBtn">撮影時刻順に並び替え</button>
     <div class="sort-status" id="sortStatus"></div>
-    <button type="button" class="secondary" id="autoFillCaptionBtn">撮影時刻をテロップに自動入力</button>
+    <button type="button" class="secondary" id="autoFillCaptionBtn">撮影時刻を時刻欄に自動入力</button>
     <div class="sort-status" id="fillStatus"></div>
     <div class="estimate" id="estimate"></div>
   </div>
@@ -354,12 +354,13 @@
     natural: null
   };
   // テロップデザインごとに、drawtextフィルタ文字列を組み立てる関数。
-  // captionFile: 「テロップ」欄のテキストファイル名（なければnull)
-  // memoFile: 「メモ」欄のテキストファイル名（なければnull）／ target: {width, height}
+  // captionFile: 「時刻」欄のテキストファイル名（なければnull) ／ 一段小さい文字で、テロップの少し上に表示する
+  // memoFile: 「テロップ」欄のテキストファイル名（なければnull）／ 大きめの文字で、画面上の基準位置（中央、または字幕風の下端）にちょうど表示する
+  // target: {width, height}
   //
-  // 「メモ」は「テロップ」より一段小さい文字で、上下に余白を空けて下に表示する。
+  // 「時刻」は「テロップ」より一段小さい文字で、テロップのすぐ上に余白を空けて表示する。
   // 2行それぞれ個別にdrawtextを呼び、x=(w-text_w)/2で行ごとに中央揃えにすることで、
-  // テロップとメモの文字幅が違っても、それぞれがブレずに画面中央に来るようにしている
+  // テロップと時刻の文字幅が違っても、それぞれがブレずに画面中央に来るようにしている
   // （1つのdrawtextに2行まとめて渡すと、左揃えになってしまい中央揃えにならないため）。
   const TELOP_STYLES = {
     // シンプル：白文字＋黒フチのみ。画面中央に表示する定番スタイル。
@@ -391,7 +392,7 @@
     },
   };
 
-  // メモの文字サイズ（テロップの65%）と、テロップ・メモの間の余白を、テロップの
+  // 時刻の文字サイズ（テロップの65%）と、テロップ・時刻の間の余白を、テロップの
   // フォントサイズから算出する共通ヘルパー。行の高さは実測できないため
   // （drawtextのtext_hは別々のフィルタ間で共有できないため）、フォントサイズから
   // おおよその行の高さを見積もって使う。
@@ -403,33 +404,35 @@
     return { memoFontSize, gap, mainLineH, memoLineH };
   }
 
-  // 中央揃え（画面中央、または指定したcenterY）に、テロップ→（余白）→メモの順で
-  // 縦に並べる。どちらか一方しかない場合は、それを通常サイズの1行として中央に表示する。
+  // テロップ（メモ欄の文字、大きめ）を画面中央（または指定したcenterY）にちょうど
+  // 配置し、時刻（テロップ欄の文字、小さめ）はその少し上に余白を空けて表示する。
+  // どちらか一方しかない場合は、それを通常サイズの1行として中央に表示する。
   function buildCenteredStack(base, captionFile, memoFile, mainFontSize, centerYExpr){
     const centerY = centerYExpr || 'h/2';
     if(captionFile && memoFile){
-      const { memoFontSize, gap, mainLineH, memoLineH } = memoLayout(mainFontSize);
-      const totalH = mainLineH + gap + memoLineH;
-      const topY = `(${centerY})-${totalH}/2`;
+      const { memoFontSize: timeFontSize, gap, mainLineH, memoLineH: timeLineH } = memoLayout(mainFontSize);
+      const telopY = `(${centerY})-${mainLineH}/2`;
+      const timeY = `${telopY}-${gap}-${timeLineH}`;
       return [
-        `${base}:textfile=${captionFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${topY}`,
-        `${base}:textfile=${memoFile}:fontsize=${memoFontSize}:x=(w-text_w)/2:y=${topY}+${mainLineH + gap}`,
+        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${telopY}`,
+        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2:y=${timeY}`,
       ].join(',');
     }
     const onlyFile = captionFile || memoFile;
     return `${base}:textfile=${onlyFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=(${centerY})-text_h/2`;
   }
 
-  // 下端からの余白（bottomYExpr＝テキストの下端をここに合わせる）を基準に、
-  // テロップ→（余白）→メモの順で縦に並べる（字幕風スタイルの、黒帯なし時に使用）。
+  // 下端からの余白（bottomYExpr＝テロップ（メモ欄の文字、大きめ）の下端をここに
+  // 合わせる）を基準に、時刻（テロップ欄の文字、小さめ）をその少し上に表示する
+  // （字幕風スタイルの、黒帯なし時に使用）。
   function buildBottomAnchoredStack(base, captionFile, memoFile, mainFontSize, bottomYExpr){
     if(captionFile && memoFile){
-      const { memoFontSize, gap, mainLineH, memoLineH } = memoLayout(mainFontSize);
-      const memoY = `${bottomYExpr}-${memoLineH}`;
-      const captionY = `${bottomYExpr}-${memoLineH}-${gap}-${mainLineH}`;
+      const { memoFontSize: timeFontSize, gap, mainLineH, memoLineH: timeLineH } = memoLayout(mainFontSize);
+      const telopY = `${bottomYExpr}-${mainLineH}`;
+      const timeY = `${telopY}-${gap}-${timeLineH}`;
       return [
-        `${base}:textfile=${captionFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${captionY}`,
-        `${base}:textfile=${memoFile}:fontsize=${memoFontSize}:x=(w-text_w)/2:y=${memoY}`,
+        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${telopY}`,
+        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2:y=${timeY}`,
       ].join(',');
     }
     const onlyFile = captionFile || memoFile;
@@ -572,12 +575,12 @@
           <button data-act="del" title="削除">✕</button>
         </div>
         <div class="caption-row">
-          <span>テロップ</span>
-          <input type="text" data-act="caption" placeholder="このクリップに入れる文字（空欄なら表示しません）">
+          <span>時刻</span>
+          <input type="text" data-act="caption" placeholder="撮影時刻（自動入力ボタンで入力可）や好きな文字（空欄なら表示しません）">
         </div>
         <div class="caption-row">
-          <span>メモ</span>
-          <input type="text" data-act="memo" placeholder="撮影時刻とは別に、好きな文字を追加できます（テロップの下にもう1行として表示）">
+          <span>テロップ</span>
+          <input type="text" data-act="memo" placeholder="このクリップに入れる文字（空欄なら表示しません）">
         </div>
         <div class="caption-row">
           <span>速度</span>
@@ -785,11 +788,11 @@
       });
       renderList();
       if(filled > 0){
-        fillStatus.textContent = `${filled}本のテロップ欄に撮影時刻を自動入力しました（すでに文字が入っている欄は上書きしていません）。`;
+        fillStatus.textContent = `${filled}本の時刻欄に撮影時刻を自動入力しました（すでに文字が入っている欄は上書きしていません）。`;
       } else if(detected.length === 0){
         fillStatus.textContent = '撮影時刻を検出できませんでした（元の動画に撮影日時の記録がない可能性があります）。';
       } else {
-        fillStatus.textContent = 'すべてのテロップ欄に既に文字が入力されているため、自動入力しませんでした。';
+        fillStatus.textContent = 'すべての時刻欄に既に文字が入力されているため、自動入力しませんでした。';
       }
     } catch(err){
       console.error(err);
@@ -1001,11 +1004,12 @@
           vfParts.push(`drawbox=x=0:y=ih-${letterboxBarHeight}:w=iw:h=${letterboxBarHeight}:color=black:t=fill`);
         }
 
-        // 「テロップ」（撮影時刻の自動入力にも使う欄）と「メモ」（それとは別に自由入力する欄）は
+        // 「時刻」（撮影時刻の自動入力にも使う欄）と「テロップ」（それとは別に自由入力する欄）は
         // それぞれ別のテキストファイルに書き出し、別々のdrawtextフィルタで描画する
         // （1つのdrawtextに2行まとめて渡すと左揃えになってしまい、行ごとに中央揃え・
-        //   文字サイズを変えることができないため）。両方入力されていれば、テロップの下に
-        // 少し小さい文字でメモが表示される。
+        //   文字サイズを変えることができないため）。両方入力されていれば、テロップを画面上の
+        // 基準位置（中央、または字幕風では下端）にちょうど配置し、その少し上に一段小さい
+        // 文字で時刻が表示される。
         let captionFile = null;
         let memoFile = null;
         const captionText = (c.caption || '').trim();
