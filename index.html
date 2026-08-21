@@ -364,7 +364,7 @@
   const TELOP_STYLES = {
     // シンプル：白文字＋黒フチのみ。画面中央に表示する定番スタイル。
     simple: (captionFile, memoFile, target) => {
-      const fontSize = Math.round(target.height * 0.045);
+      const fontSize = Math.round(target.height * 0.019);
       const borderw = Math.max(2, Math.round(fontSize * 0.06));
       const base = `drawtext=fontfile=font.ttf:fontcolor=white:borderw=${borderw}:bordercolor=black`;
       return buildCenteredStack(base, captionFile, memoFile, fontSize);
@@ -373,7 +373,7 @@
     // 「映画風レターボックス」がオンの場合は、黒帯の境界線をまたいで表示されてしまわないよう、
     // 黒帯の中央に来るように位置を切り替える（黒帯がない場合は画面下端からの固定マージン）。
     subtitle: (captionFile, memoFile, target, letterboxBarHeight) => {
-      const fontSize = Math.round(target.height * 0.032);
+      const fontSize = Math.round(target.height * 0.014);
       const boxBorder = Math.round(fontSize * 0.35);
       const bottomMargin = Math.round(target.height * 0.08);
       const base = `drawtext=fontfile=font.ttf:fontcolor=white:` +
@@ -385,7 +385,7 @@
     },
     // 映画風：フチなしの白文字＋影のみ。装飾を削ぎ落とした繊細な見た目。画面中央に表示。
     cinema: (captionFile, memoFile, target) => {
-      const fontSize = Math.round(target.height * 0.042);
+      const fontSize = Math.round(target.height * 0.018);
       const base = `drawtext=fontfile=font.ttf:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
       return buildCenteredStack(base, captionFile, memoFile, fontSize);
     },
