@@ -395,6 +395,10 @@
       ここに動画をドラッグ&ドロップ、またはクリックして選択（複数選択可）
       <input type="file" id="fileInput" accept="video/*" multiple>
     </div>
+    <div class="note">
+      ・アップロードする素材の合計サイズは、目安として1.5GBまでにしてください（このツールが使っているブラウザ内処理エンジンの仕様上、2GBを超えると処理できません。編集中の一時データも同じ上限を共有するため、余裕を持って1.5GB程度までを推奨します）。<br>
+      ・iPhone本体のメモリが少ないほど、2GBより手前でも処理が止まる（クラッシュする）ことがあります。素材が多い・長尺な場合は、いくつかのグループに分けて作成するのがおすすめです。
+    </div>
     <ul id="clipList"></ul>
     <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
     <div class="status-badge" id="sortStatus"></div>
@@ -1185,27 +1189,66 @@
     progressFill.style.width = '0%';
     logEl.innerHTML = '';
 
-    // クリップ処理中の「残り時間目安」の1秒タイマー。try/catch/finallyのどこからでも
-    // 確実に止められるよう、try節の外（この関数のトップレベル）で管理する。
+    // 「残り時間目安」の管理。
+    // 以前は（1）クリップが切り替わるたびに見積もりを完全に置き換えていたため、
+    // クリップごとの処理時間の差がそのまま表示に出て数字が飛び飛びに変化し、
+    // （2）結合・クロスフェード・BGM合成は処理内容がクリップ処理と全く違う
+    // （軽いブレンドや、映像を再エンコードしないストリームコピーなど）のに、
+    // クリップ処理の実測レートをそのまま当てはめてしまい、実際より大きく
+    // 見積もりすぎて数秒→2分半のように跳ね上がる、という問題があった。
+    // これを解消するため、
+    //   ・「実測データがまだ無い間は数字を出さない」を各フェーズ（クリップ処理／
+    //     クロスフェード結合／BGM合成）ごとに適用し、他フェーズの実測を
+    //     流用しない（＝的外れな見積もりで跳ね上がらない）
+    //   ・新しい見積もりは表示中の値と7:3でブレンドし、なめらかに近づける
+    //     （同じフェーズ内では飛び飛びにならない）
+    // ようにしている。try/catch/finallyのどこからでも確実に止められるよう、
+    // タイマー自体はtry節の外（この関数のトップレベル）で管理する。
     let countdownTimer = null;
     let countdownRemainingMs = 0;
     let countdownLabelPrefix = '';
+    let countdownHasEstimate = false; // 今のフェーズで一度でも実測に基づく見積もりを出したか
     const renderCountdown = () => {
-      const label = countdownRemainingMs > 0 ? `　残り目安：約${formatEstimate(countdownRemainingMs)}` : '';
+      let label = '';
+      if(countdownHasEstimate){
+        label = countdownRemainingMs > 500
+          ? `　残り目安：約${formatEstimate(countdownRemainingMs)}`
+          : '　残り目安：あと少しです';
+      }
       statusText.textContent = `${countdownLabelPrefix}${label}`;
     };
-    const startCountdown = (initialMs, labelPrefix) => {
-      if(countdownTimer) clearInterval(countdownTimer);
-      countdownRemainingMs = initialMs;
+    // ラベルだけ更新して1秒タイマーを（動いていなければ）開始する。残り時間の値は
+    // 変えない＝ここでは見積もりをリセットしない（adjustCountdown/resetEstimateでのみ変える）。
+    const startCountdown = (labelPrefix) => {
       countdownLabelPrefix = labelPrefix;
       renderCountdown();
-      countdownTimer = setInterval(() => {
-        countdownRemainingMs = Math.max(0, countdownRemainingMs - 1000);
-        renderCountdown();
-      }, 1000);
+      if(!countdownTimer){
+        countdownTimer = setInterval(() => {
+          countdownRemainingMs = Math.max(0, countdownRemainingMs - 1000);
+          renderCountdown();
+        }, 1000);
+      }
+    };
+    // 新しい見積もり(freshMs)を、現在表示中の残り時間と7:3でブレンドして反映する
+    // （表示中の値を大きく優先することで、実測のブレによる急な飛びを抑える）。
+    // このフェーズでまだ値がない最初の1回だけは、新しい見積もりをそのまま採用する。
+    const adjustCountdown = (freshMs) => {
+      countdownRemainingMs = countdownHasEstimate && countdownRemainingMs > 0
+        ? Math.round(countdownRemainingMs * 0.7 + freshMs * 0.3)
+        : Math.round(freshMs);
+      countdownHasEstimate = true;
+    };
+    // 処理内容が変わるフェーズの境目（クリップ処理→結合、結合→BGM合成など）で呼ぶ。
+    // それまでの見積もりは前提が違う処理のものなので引き継がず、このフェーズで
+    // 実測値が得られるまでは数字を表示しない（1秒タイマー自体は止めない）。
+    const resetEstimate = () => {
+      countdownHasEstimate = false;
+      countdownRemainingMs = 0;
     };
     const stopCountdown = () => {
       if(countdownTimer){ clearInterval(countdownTimer); countdownTimer = null; }
+      countdownHasEstimate = false;
+      countdownRemainingMs = 0;
     };
     const formatEstimate = (ms) => {
       const totalSec = Math.max(0, Math.round(ms / 1000));
@@ -1260,11 +1303,11 @@
         const labelPrefix = `クリップを処理中... (${i+1}/${total})`;
         if(clipElapsedTimes.length > 0){
           const avgClipMs = clipElapsedTimes.reduce((a,b)=>a+b,0) / clipElapsedTimes.length;
-          startCountdown(avgClipMs * (total - i), labelPrefix);
-        } else {
-          stopCountdown();
-          statusText.textContent = labelPrefix;
+          adjustCountdown(avgClipMs * (total - i));
         }
+        // 1本目はまだ実測値がないため見積もりは出さない（従来通り。countdownHasEstimateが
+        // falseのままなのでrenderCountdownが自動的にラベルのみ表示する）
+        startCountdown(labelPrefix);
         progressFill.style.width = `${Math.round((i/(total+1))*100)}%`;
         const clipStartedAt = Date.now();
 
@@ -1386,9 +1429,18 @@
           try { await ffmpeg.deleteFile(memoFile); } catch(e){ /* 削除失敗は無視して続行 */ }
         }
       }
-      stopCountdown();
 
-      statusText.textContent = '結合して書き出し中...';
+      // ここから先（結合・クロスフェード・BGM合成）は、クリップ1本を書き出すのとは
+      // 処理内容の重さがまったく違う（クロスフェードは軽いブレンド処理、単純結合や
+      // BGM合成は映像を再エンコードしないためかなり高速）。そのため、クリップ処理の
+      // 実測レートをそのまま当てはめると大きく見積もりすぎてしまい、逆に「飛び飛び」の
+      // 原因になる（実際、単純に当てはめたところ数秒→2分半に跳ね上がる現象が起きた）。
+      // 以前はここでstopCountdown()して見積もりを完全に止めていたが、それも「止まって
+      // 見える」原因だった。resetEstimate()でクリップ処理時の見積もりは引き継がず、
+      // この先の段階（結合・クロスフェード・BGM合成）は実測が得られるまで数字を出さない
+      // ようにする（他フェーズの実測を流用しないことで的外れな跳ね上がりを防ぐ）。
+      resetEstimate();
+      startCountdown('結合して書き出し中...');
       progressFill.style.width = `${Math.round((total/(total+1))*100)}%`;
 
       let finalName;
@@ -1400,8 +1452,19 @@
         const crossDur = Math.max(0.15, Math.min(0.5, minPlayback * 0.3));
         let mergedName = outNames[0];
         let cumulative = outDurations[0];
+        const mergeElapsedTimes = [];
         for(let i=1; i<outNames.length; i++){
-          statusText.textContent = `クロスフェードで結合中... (${i}/${outNames.length - 1})`;
+          const mergeLabelPrefix = `クロスフェードで結合中... (${i}/${outNames.length - 1})`;
+          // クリップ処理の1本目と同じ考え方：このステップの実測値がまだ無いうちは
+          // 新しい見積もりを出さず、直前の値をそのまま引き継いで自然に減らし続ける。
+          // 2回目以降は、このステップ自身の実測平均（残りトランジション数分）で更新する。
+          if(mergeElapsedTimes.length > 0){
+            const avgMergeMs = mergeElapsedTimes.reduce((a,b)=>a+b,0) / mergeElapsedTimes.length;
+            const remainingTransitions = outNames.length - i;
+            adjustCountdown(avgMergeMs * remainingTransitions);
+          }
+          startCountdown(mergeLabelPrefix);
+          const mergeStartedAt = Date.now();
           // マージ結果も各クリップと同じmatroska（.mkv）コンテナで保持する。
           // xfade/acrossfadeフィルタは2つの入力映像のタイムベースが一致していないと
           // エラーになるが、mp4とmatroskaではコンテナのデフォルトタイムベースが異なるため、
@@ -1422,6 +1485,7 @@
           try { await ffmpeg.deleteFile(outNames[i]); } catch(e){ /* 削除失敗は無視して続行 */ }
           cumulative = cumulative + outDurations[i] - crossDur;
           mergedName = nextMerged;
+          mergeElapsedTimes.push(Date.now() - mergeStartedAt);
         }
         // 最終結果はmatroskaのままだと後段（BGM合成やダウンロード）でmp4として扱えないため、
         // ストリームコピーで正式なmp4コンテナに詰め替える（再エンコードなしなので高速）。
@@ -1466,7 +1530,10 @@
       // 動画の長さに合わせてループ・トリムし、元の音声は消さずに指定音量で重ねる
       // （最後の1秒はフェードアウト）。
       if(bgmSource){
-        statusText.textContent = 'BGMを合成中...';
+        // BGM合成も結合とは別の処理内容（映像はストリームコピー、音声だけ合成）なので、
+        // 結合フェーズの見積もりは引き継がない。
+        resetEstimate();
+        startCountdown('BGMを合成中...');
         const totalDur = await probeDuration(finalName);
         const { fetchFile } = FFmpegUtil;
         // プリセット（文字列のパス）ならその拡張子、アップロードされたファイルなら
