@@ -355,6 +355,15 @@
     background:var(--btn-dark-bg); color:#fff; text-decoration:none; font-size:14px; font-weight:800;
   }
   .note{font-size:11px; color:var(--sub); line-height:1.8; margin-top:6px;}
+  /* 見落とされやすい注意事項（容量の上限など）を目立たせるための強調ノート。
+     エラー表示と同じ色（--danger-soft/--error）を使い、アイコン付きの
+     カード状にすることで、ただの補足説明（.note）より視覚的に目に入るようにする。 */
+  .note-warning{
+    display:flex; align-items:flex-start; gap:10px; margin-top:10px; padding:12px 14px;
+    border-radius:14px; background:var(--danger-soft); color:var(--error);
+    font-size:12px; font-weight:700; line-height:1.7;
+  }
+  .note-warning .icon{font-size:16px; flex-shrink:0; line-height:1;}
   .error{color:var(--error); font-size:12px; margin-top:8px; display:none; font-weight:700;}
   /* 「動画を作成する」ボタンを画面下部に追従表示するバー。
      ④作成カード内の本来のボタンは処理中・完了時の詳細表示（プログレスバー・結果動画等）に
@@ -413,9 +422,12 @@
       ここに動画をドラッグ&ドロップ、またはクリックして選択（複数選択可）
       <input type="file" id="fileInput" accept="video/*" multiple>
     </div>
-    <div class="note">
-      ・素材の合計サイズは1.5GBまでを目安にしてください（上限は2GB）。<br>
-      ・多い・長尺な場合はいくつかのグループに分けて作成するのがおすすめです。
+    <div class="note-warning">
+      <span class="icon" aria-hidden="true">⚠️</span>
+      <span>
+        素材の合計サイズは1.5GBまでを目安にしてください（上限は2GB）。<br>
+        多い・長尺な場合はいくつかのグループに分けて作成するのがおすすめです。
+      </span>
     </div>
     <ul id="clipList"></ul>
     <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
