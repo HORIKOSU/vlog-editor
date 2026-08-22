@@ -429,6 +429,7 @@
         多い・長尺な場合はいくつかのグループに分けて作成するのがおすすめです。
       </span>
     </div>
+    <div class="status-badge" id="uploadStatus"></div>
     <ul id="clipList"></ul>
     <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
     <div class="status-badge" id="sortStatus"></div>
@@ -763,6 +764,7 @@
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
   const clipListEl = document.getElementById('clipList');
+  const uploadStatus = document.getElementById('uploadStatus');
   const estimateEl = document.getElementById('estimate');
   const runBtn = document.getElementById('runBtn');
   const progressWrap = document.getElementById('progressWrap');
@@ -812,8 +814,33 @@
     fileInput.value = '';
   });
 
+  // 動画として認識できる拡張子（iPhoneの写真アプリから選んだ動画の一部は、
+  // file.typeが空文字になることがあり、その場合はtypeでの判定ができないため
+  // 拡張子でも判定する）。これが原因で「素材を選んでチェックを押しても
+  // 何も追加されない（進まない）」ように見えるケースがあったため対応した。
+  const VIDEO_EXTS = ['mp4','mov','m4v','webm','avi','3gp','3g2','mkv','hevc','qt'];
+  function isVideoFile(f){
+    if(f.type && f.type.startsWith('video/')) return true;
+    if(!f.type) return VIDEO_EXTS.includes(extOf(f.name));
+    return false;
+  }
+
   function addFiles(fileList){
-    const arr = Array.from(fileList).filter(f => f.type.startsWith('video/'));
+    const allFiles = Array.from(fileList);
+    const arr = allFiles.filter(isVideoFile);
+    const skipped = allFiles.length - arr.length;
+
+    // 選んだのに何も起きていないように見える、を防ぐため、結果を必ず一言で表示する。
+    if(allFiles.length === 0){
+      // dropZoneのクリック→キャンセルなどで空で呼ばれるケースなので何もしない
+    } else if(arr.length === 0){
+      setStatusBadge(uploadStatus, '動画として認識できるファイルがありませんでした。動画ファイルを選び直してください。', 'error');
+    } else if(skipped > 0){
+      setStatusBadge(uploadStatus, `${arr.length}件を追加しました（${skipped}件は動画として認識できずスキップ）`, 'error');
+    } else {
+      setStatusBadge(uploadStatus, `${arr.length}件の動画を追加しました`, 'done');
+    }
+
     arr.forEach(file => {
       const entry = { file, width: null, height: null, duration: null, caption: '', memo: '', captureTime: undefined, thumbnail: null, speed: '1' };
       clips.push(entry);
