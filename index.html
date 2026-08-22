@@ -44,14 +44,24 @@
     --btn-dark-bg:#2b2420;
     --focus:#4a90d9;
     --error:#b03a1a;
-    /* ニューモーフィズム用の影トークン。明暗2方向の影を組み合わせて柔らかい立体感を出す。
-       ダークモードでは --shadow-d / --shadow-l だけを上書きすれば、これを参照する
-       --shadow 等は自動的にダークモード用の値に切り替わる。 */
-    --shadow-d:rgba(193,97,62,.16);
-    --shadow-l:rgba(255,255,255,.85);
-    --shadow:9px 9px 20px var(--shadow-d), -7px -7px 16px var(--shadow-l);
-    --shadow-sm:4px 4px 10px var(--shadow-d), -3px -3px 9px var(--shadow-l);
-    --shadow-inset:inset 3px 3px 7px var(--shadow-d), inset -3px -3px 7px var(--shadow-l);
+    /* 補助的な操作（並び替え・自動入力など）に使うニュートラル色。
+       「オレンジ＝これが本命の操作」という意味に絞るため、優先度の低いボタンは
+       この色を使い、プライマリボタンと見た目の役割を分ける。 */
+    --neutral-bg:#f0ebe5;
+    --neutral-border:#d9cfc3;
+    --neutral-ink:#5c5248;
+    /* 状態バッジ用の色。進行中はaccent、完了はsuccess、エラーはerrorを使う。 */
+    --success:#2f6b43;
+    --success-soft:#e3f0e6;
+    --danger-soft:#f5ddd6;
+    /* 立体感を出す影トークン。明暗2方向のぼかしを重ねる方式（ニューモーフィズム）は
+       ぼかしが強いと輪郭がぼやけて「グラデーション」に見えてしまうため、単一方向・
+       短いぼかしのシャドウ1本にして、輪郭がはっきり分かる「浮いている/沈んでいる」
+       見た目にしている。ダークモードでは --shadow-d だけを上書きすればよい。 */
+    --shadow-d:rgba(80,50,30,.18);
+    --shadow:0 6px 14px var(--shadow-d);
+    --shadow-sm:0 3px 8px var(--shadow-d);
+    --shadow-inset:inset 0 2px 5px var(--shadow-d);
   }
   :root[data-theme="dark"]{
     --accent:#e58a5f;
@@ -67,12 +77,17 @@
     --btn-disabled-bg:#3c2f25;
     --btn-dark-bg:#140f0b;
     --error:#ff8a5c;
-    --shadow-d:rgba(0,0,0,.6);
-    --shadow-l:rgba(255,255,255,.045);
+    --neutral-bg:#362b22;
+    --neutral-border:#4a3c30;
+    --neutral-ink:#cbb9a8;
+    --success:#7fc999;
+    --success-soft:#24352a;
+    --danger-soft:#3a2420;
+    --shadow-d:rgba(0,0,0,.55);
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; padding:32px 16px 80px;
+    margin:0; padding:32px 16px 110px;
     background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
     transition:background .2s, color .2s;
@@ -119,7 +134,8 @@
     padding:10px 12px; border:1px solid var(--line); border-radius:18px;
     margin-bottom:10px; font-size:13px; background:var(--card);
   }
-  ul#clipList li .row1{display:flex; align-items:center; gap:10px;}
+  ul#clipList li .row1{display:flex; align-items:center; gap:8px;}
+  ul#clipList li .actions{display:flex; gap:4px; flex-shrink:0;}
   ul#clipList li .idx{
     width:24px; height:24px; border-radius:50%; background:var(--accent-btn);
     color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
@@ -133,11 +149,13 @@
   ul#clipList li .thumb .thumb-loading{font-size:10px; color:var(--sub);}
   ul#clipList li .name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   ul#clipList li .meta{color:var(--sub); font-size:11px; flex-shrink:0;}
+  /* ▲▼✕は誤タップ防止のため、背景付きのボタンとしてカード状に見せ、間隔も確保する。 */
   ul#clipList li button{
-    border:none; background:none; cursor:pointer; color:var(--sub); font-size:16px;
-    padding:8px 10px; border-radius:10px; min-width:34px; min-height:34px;
+    border:none; background:var(--neutral-bg); cursor:pointer; color:var(--neutral-ink); font-size:15px;
+    padding:8px 10px; border-radius:10px; min-width:36px; min-height:36px;
   }
   ul#clipList li button:hover{background:var(--accent-soft); color:var(--accent-dark);}
+  ul#clipList li button[data-act="del"]:hover{background:var(--danger-soft); color:var(--error);}
   ul#clipList li .caption-row{margin-top:8px; display:flex; align-items:center; gap:6px;}
   ul#clipList li .caption-row span{font-size:11px; color:var(--sub); flex-shrink:0;}
   ul#clipList li .caption-row input, ul#clipList li .caption-row select{
@@ -151,6 +169,15 @@
     width:100%; padding:11px 14px; border:1.5px solid var(--line); border-radius:14px;
     font-size:13px; background:var(--card); color:var(--ink); font-family:inherit;
   }
+  /* 数値入力のステッパー（＋／－ボタン）。数字をタップで打つ手間を減らすため。 */
+  .stepper{display:flex; align-items:center; gap:8px;}
+  .stepper input[type=number]{text-align:center;}
+  .stepper button{
+    width:40px; height:40px; flex-shrink:0; border-radius:12px; border:1.5px solid var(--line);
+    background:var(--card); font-size:17px; font-weight:800; color:var(--accent-dark); cursor:pointer;
+    box-shadow:var(--shadow-sm);
+  }
+  .stepper button:active{transform:scale(.94); box-shadow:var(--shadow-inset);}
   .radiogroup{display:flex; gap:10px;}
   .radiogroup label{
     flex:1; text-align:center; padding:11px 6px; border:1.5px solid var(--line);
@@ -208,17 +235,34 @@
   }
   .tip-text{font-size:13px; color:var(--ink); font-weight:600; line-height:1.6;}
   .estimate{font-size:12px; color:var(--sub); margin-top:6px;}
+  /* セカンダリボタン（並び替え・自動入力など補助操作）はニュートラル色にして、
+     オレンジ＝「これが本命の操作（プライマリボタン）」という意味に絞る。 */
   button.secondary{
-    margin-top:6px; padding:14px 22px; min-height:46px; border:2px solid var(--accent); border-radius:999px;
-    background:var(--card); color:var(--accent-dark); font-size:13px; font-weight:800; cursor:pointer;
+    margin-top:6px; padding:14px 22px; min-height:46px; border:1.5px solid var(--neutral-border); border-radius:999px;
+    background:var(--neutral-bg); color:var(--neutral-ink); font-size:13px; font-weight:700; cursor:pointer;
     box-shadow:var(--shadow-sm);
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
     transition:background .15s, transform .1s, box-shadow .1s;
   }
-  button.secondary:hover:not(:disabled){background:var(--accent-soft);}
+  button.secondary:hover:not(:disabled){background:var(--line);}
   button.secondary:active:not(:disabled){transform:scale(.97); box-shadow:var(--shadow-inset);}
   button.secondary:disabled{opacity:.5; cursor:not-allowed;}
   .sort-status{font-size:11px; color:var(--sub); margin-top:8px; min-height:14px;}
-  .sort-status.done{color:var(--accent-dark); font-weight:700;}
+  /* 状態バッジ：進行中(accent)・完了(success)・エラー(error)を色とアイコンの
+     両方で区別する（色だけに頼らないよう、テキストの前に丸いドットも付ける）。
+     sortStatus/fillStatusなど「進行状況を伝える」要素にだけ付与し、ファイル名の
+     注記など通常のテキスト表示には付与しない。 */
+  .status-badge{
+    display:inline-flex; align-items:center; gap:7px; margin-top:8px; padding:8px 12px;
+    border-radius:12px; font-size:11.5px; font-weight:700;
+    background:var(--accent-soft); color:var(--accent-dark);
+  }
+  .status-badge:empty{display:none; margin:0; padding:0;}
+  .status-badge::before{content:''; width:7px; height:7px; border-radius:50%; flex-shrink:0; background:currentColor;}
+  /* クラス名は "is-done" / "is-error" にする（既存の .error セレクタ（#errorBoxで
+     使用、display:noneが既定）と同名衝突してdisplayが打ち消されるのを避けるため）。 */
+  .status-badge.is-done{background:var(--success-soft); color:var(--success);}
+  .status-badge.is-error{background:var(--danger-soft); color:var(--error);}
   button.primary{
     width:100%; padding:20px; min-height:56px; border:none; border-radius:999px;
     background:var(--accent-btn); color:#fff; font-size:17px; font-weight:800; cursor:pointer;
@@ -229,6 +273,21 @@
   button.primary:disabled{background:var(--btn-disabled-bg); box-shadow:none; cursor:not-allowed;}
   button.primary:hover:not(:disabled){background:var(--accent-btn-hover);}
   button.primary:active:not(:disabled){transform:scale(.98);}
+  /* 処理中フィードバック：ボタン自体のラベルをスピナー＋「処理中...」に変える。
+     高さ(min-height)は通常時と同じなので、切り替わってもレイアウトが動かない。 */
+  button.primary.is-processing{
+    background:var(--accent-btn-hover); cursor:default;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn-spinner{
+    width:17px; height:17px; border-radius:50%; flex-shrink:0;
+    border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff;
+    animation:btnSpin .8s linear infinite;
+  }
+  @keyframes btnSpin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion: reduce){
+    .btn-spinner{animation:none;}
+  }
   /* マイクロインタラクション：ボタンを押した位置から広がるリップル（波紋）効果。
      JS側でクリック位置に合わせて span.ripple-el を生成し、アニメーション終了後に削除する。 */
   .ripple-el{
@@ -274,6 +333,19 @@
   }
   .note{font-size:11px; color:var(--sub); line-height:1.8; margin-top:6px;}
   .error{color:var(--error); font-size:12px; margin-top:8px; display:none; font-weight:700;}
+  /* 「動画を作成する」ボタンを画面下部に追従表示するバー。
+     ④作成カード内の本来のボタンは処理中・完了時の詳細表示（プログレスバー・結果動画等）に
+     使い、追従バーはスクロール中も常に押せる入口として機能する。 */
+  .sticky-cta{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, var(--bg) 65%, transparent);
+    pointer-events:none;
+  }
+  .sticky-cta .wrap{max-width:720px; margin:0 auto; pointer-events:auto;}
+  .sticky-cta button.primary{margin:0;}
+  /* ④作成カードのボタンが画面内に見えている間は、追従バーを隠して二重表示を防ぐ。 */
+  .sticky-cta.is-hidden{display:none;}
 </style>
 </head>
 <body>
@@ -319,10 +391,10 @@
       <input type="file" id="fileInput" accept="video/*" multiple>
     </div>
     <ul id="clipList"></ul>
-    <button type="button" class="secondary" id="sortByTimeBtn">撮影時刻順に並び替え</button>
-    <div class="sort-status" id="sortStatus"></div>
-    <button type="button" class="secondary" id="autoFillCaptionBtn">撮影時刻を時刻欄に自動入力</button>
-    <div class="sort-status" id="fillStatus"></div>
+    <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
+    <div class="status-badge" id="sortStatus"></div>
+    <button type="button" class="secondary" id="autoFillCaptionBtn">⏰ 撮影時刻を時刻欄に自動入力</button>
+    <div class="status-badge" id="fillStatus"></div>
     <div class="estimate" id="estimate"></div>
   </div>
 
@@ -331,7 +403,11 @@
     <div class="row">
       <div class="field">
         <label>1クリップあたりの秒数</label>
-        <input type="number" id="duration" value="1.5" min="0.3" step="0.1">
+        <div class="stepper">
+          <button type="button" id="durationMinus" aria-label="0.1秒減らす">－</button>
+          <input type="number" id="duration" value="1.5" min="0.3" step="0.1">
+          <button type="button" id="durationPlus" aria-label="0.1秒増やす">＋</button>
+        </div>
       </div>
       <div class="field">
         <label>切り出し位置</label>
@@ -464,6 +540,14 @@
 
 </div>
 
+<!-- 「動画を作成する」ボタンの追従バー。④作成カードのボタンが画面外に出ている間だけ表示し、
+     スクロール中もワンタップで実行できるようにする。中身は④のボタンとJSで同期する。 -->
+<div class="sticky-cta is-hidden" id="stickyCta">
+  <div class="wrap">
+    <button type="button" class="primary" id="stickyRunBtn">動画を作成する</button>
+  </div>
+</div>
+
 <script>
 (function(){
   // ダークモードの手動切り替え。初期状態は<head>内の先読みスクリプトで
@@ -509,6 +593,30 @@
     });
   }
   document.querySelectorAll('button.primary, button.secondary').forEach(attachRipple);
+
+  // 「動画を作成する」ボタンの追従バー。④作成カード内の本物のボタンが画面内に
+  // 見えている間は隠し、見えなくなったら表示する。ラベル・disabled状態・処理中表示は
+  // MutationObserverで本物のボタンから常にコピーするだけにし、実際の処理は
+  // 本物のボタンのclick()を呼び出すことで実行する（ロジックの二重管理を避ける）。
+  (function initStickyCta(){
+    const stickyCta = document.getElementById('stickyCta');
+    const stickyRunBtn = document.getElementById('stickyRunBtn');
+    const realRunBtn = document.getElementById('runBtn');
+    if(!stickyCta || !stickyRunBtn || !realRunBtn) return;
+    const syncButton = () => {
+      stickyRunBtn.innerHTML = realRunBtn.innerHTML;
+      stickyRunBtn.disabled = realRunBtn.disabled;
+      stickyRunBtn.classList.toggle('is-processing', realRunBtn.classList.contains('is-processing'));
+    };
+    syncButton();
+    new MutationObserver(syncButton).observe(realRunBtn, { attributes:true, childList:true, characterData:true, subtree:true });
+    stickyRunBtn.addEventListener('click', () => { if(!realRunBtn.disabled) realRunBtn.click(); });
+    if('IntersectionObserver' in window){
+      new IntersectionObserver(entries => {
+        stickyCta.classList.toggle('is-hidden', entries[0].isIntersecting);
+      }, { threshold: 0 }).observe(realRunBtn);
+    }
+  })();
 
   const STYLE_PRESETS = {
     vlog: "eq=contrast=0.95:brightness=0.02:saturation=0.85,colorbalance=rm=0.06:gm=0.02:bm=-0.06:rs=0.04:gs=0.01:bs=-0.04,curves=master='0/0.02 0.25/0.28 0.75/0.74 1/0.98'",
@@ -740,9 +848,11 @@
           <div class="thumb">${c.thumbnail ? `<img src="${c.thumbnail}" alt="サムネイル">` : '<span class="thumb-loading">…</span>'}</div>
           <div class="name">${c.file.name}</div>
           <div class="meta">${metaText}</div>
-          <button data-act="up" title="上に移動" aria-label="このクリップを上に移動">▲</button>
-          <button data-act="down" title="下に移動" aria-label="このクリップを下に移動">▼</button>
-          <button data-act="del" title="削除" aria-label="このクリップを削除">✕</button>
+          <div class="actions">
+            <button data-act="up" title="上に移動" aria-label="このクリップを上に移動">▲</button>
+            <button data-act="down" title="下に移動" aria-label="このクリップを下に移動">▼</button>
+            <button data-act="del" title="削除" aria-label="このクリップを削除">✕</button>
+          </div>
         </div>
         <div class="caption-row">
           <span>時刻</span>
@@ -789,6 +899,24 @@
   }
   document.getElementById('duration').addEventListener('input', updateEstimate);
   document.getElementById('durationJitter').addEventListener('change', updateEstimate);
+
+  // 秒数入力のステッパー（＋／－ボタン）。数字をタップで打つ手間を減らすため。
+  (function initDurationStepper(){
+    const durationInput = document.getElementById('duration');
+    const minus = document.getElementById('durationMinus');
+    const plus = document.getElementById('durationPlus');
+    const step = () => parseFloat(durationInput.step) || 0.1;
+    const min = () => parseFloat(durationInput.min) || 0.1;
+    const adjust = delta => {
+      const current = parseFloat(durationInput.value) || min();
+      // 浮動小数の誤差（0.1+0.1+0.1のような計算）を避けるため、小数第2位で四捨五入する。
+      const next = Math.max(min(), Math.round((current + delta) * 100) / 100);
+      durationInput.value = next;
+      durationInput.dispatchEvent(new Event('input'));
+    };
+    minus.addEventListener('click', () => adjust(-step()));
+    plus.addEventListener('click', () => adjust(step()));
+  })();
 
   function log(msg){
     const line = document.createElement('div');
@@ -934,16 +1062,25 @@
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  // 状態バッジ（.status-badge）のテキストと色を同時に切り替える。
+  // variant省略時は「進行中」の見た目（accent色）のまま使う。
+  function setStatusBadge(el, text, variant){
+    el.textContent = text;
+    // クラス名は "is-done" / "is-error"。既存の.errorセレクタとの衝突を避けるための命名。
+    el.classList.remove('is-done', 'is-error');
+    if(variant === 'done' || variant === 'error') el.classList.add('is-' + variant);
+  }
+
   autoFillCaptionBtn.addEventListener('click', async () => {
     if(clips.length === 0){
-      fillStatus.textContent = '先に動画をアップロードしてください。';
+      setStatusBadge(fillStatus, '先に動画をアップロードしてください。', 'error');
       return;
     }
     autoFillCaptionBtn.disabled = true;
     try {
       for(let i=0; i<clips.length; i++){
         const c = clips[i];
-        fillStatus.textContent = `撮影時刻を確認中... (${i+1}/${clips.length})`;
+        setStatusBadge(fillStatus, `撮影時刻を確認中... (${i+1}/${clips.length})`);
         if(c.captureTime === undefined){
           c.captureTime = await probeCreationTime(c.file);
         }
@@ -958,15 +1095,15 @@
       });
       renderList();
       if(filled > 0){
-        fillStatus.textContent = `${filled}本の時刻欄に撮影時刻を自動入力しました（すでに文字が入っている欄は上書きしていません）。`;
+        setStatusBadge(fillStatus, `${filled}本の時刻欄に撮影時刻を自動入力しました（すでに文字が入っている欄は上書きしていません）。`, 'done');
       } else if(detected.length === 0){
-        fillStatus.textContent = '撮影時刻を検出できませんでした（元の動画に撮影日時の記録がない可能性があります）。';
+        setStatusBadge(fillStatus, '撮影時刻を検出できませんでした（元の動画に撮影日時の記録がない可能性があります）。', 'error');
       } else {
-        fillStatus.textContent = 'すべての時刻欄に既に文字が入力されているため、自動入力しませんでした。';
+        setStatusBadge(fillStatus, 'すべての時刻欄に既に文字が入力されているため、自動入力しませんでした。');
       }
     } catch(err){
       console.error(err);
-      fillStatus.textContent = '自動入力中にエラーが発生しました（下の処理ログもご確認ください）。';
+      setStatusBadge(fillStatus, '自動入力中にエラーが発生しました（下の処理ログもご確認ください）。', 'error');
     } finally {
       autoFillCaptionBtn.disabled = false;
     }
@@ -974,7 +1111,7 @@
 
   sortByTimeBtn.addEventListener('click', async () => {
     if(clips.length < 2){
-      sortStatus.textContent = '並び替えには2本以上の動画が必要です。';
+      setStatusBadge(sortStatus, '並び替えには2本以上の動画が必要です。', 'error');
       return;
     }
     sortByTimeBtn.disabled = true;
@@ -982,7 +1119,7 @@
       let detected = 0;
       for(let i=0; i<clips.length; i++){
         const c = clips[i];
-        sortStatus.textContent = `撮影時刻を確認中... (${i+1}/${clips.length})`;
+        setStatusBadge(sortStatus, `撮影時刻を確認中... (${i+1}/${clips.length})`);
         if(c.captureTime === undefined){
           c.captureTime = await probeCreationTime(c.file);
         }
@@ -995,15 +1132,15 @@
       });
       renderList();
       if(detected === clips.length){
-        sortStatus.textContent = `${clips.length}本すべての撮影時刻を検出し、並び替えました。`;
+        setStatusBadge(sortStatus, `${clips.length}本すべての撮影時刻を検出し、並び替えました。`, 'done');
       } else if(detected === 0){
-        sortStatus.textContent = '撮影時刻を検出できませんでした（元の順番のままです）。';
+        setStatusBadge(sortStatus, '撮影時刻を検出できませんでした（元の順番のままです）。', 'error');
       } else {
-        sortStatus.textContent = `${clips.length}本中${detected}本の撮影時刻を検出して並び替えました（検出できなかった${clips.length - detected}本は末尾になっています）。`;
+        setStatusBadge(sortStatus, `${clips.length}本中${detected}本の撮影時刻を検出して並び替えました（検出できなかった${clips.length - detected}本は末尾になっています）。`, 'done');
       }
     } catch(err){
       console.error(err);
-      sortStatus.textContent = '並び替え中にエラーが発生しました（下の処理ログもご確認ください）。';
+      setStatusBadge(sortStatus, '並び替え中にエラーが発生しました（下の処理ログもご確認ください）。', 'error');
     } finally {
       sortByTimeBtn.disabled = false;
     }
@@ -1041,6 +1178,9 @@
     const origVolumeWithBgm = document.getElementById('origVolumeWithBgm').value;
 
     runBtn.disabled = true;
+    // ボタン自体をスピナー＋「処理中...」表示に切り替える（高さは変わらないのでレイアウトは動かない）。
+    runBtn.classList.add('is-processing');
+    runBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>処理中...';
     progressWrap.style.display = 'block';
     progressFill.style.width = '0%';
     logEl.innerHTML = '';
@@ -1418,6 +1558,8 @@
     } finally {
       stopCountdown();
       runBtn.disabled = false;
+      runBtn.classList.remove('is-processing');
+      runBtn.textContent = '動画を作成する';
     }
   });
 })();
