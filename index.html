@@ -107,6 +107,26 @@
   .topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
   h1{font-size:22px; margin:0 0 6px; font-weight:800; display:flex; align-items:center; gap:9px;}
   h1 .logo-icon{width:28px; height:28px; flex-shrink:0; border-radius:50%;}
+  /* ロゴ文字「DayLoop」を1文字ずつゆらゆら（ウニョウニョ）揺らすアニメーション。
+     文字ごとにanimation-delayをずらして波のように見せる。
+     アクセシビリティ：見た目上の文字spanはaria-hidden、読み上げ用の単語名は親spanのaria-labelで担保。 */
+  h1 .logo-text span{display:inline-block; animation:logoWiggle 2.6s ease-in-out infinite;}
+  h1 .logo-text span:nth-child(1){animation-delay:.00s;}
+  h1 .logo-text span:nth-child(2){animation-delay:.09s;}
+  h1 .logo-text span:nth-child(3){animation-delay:.18s;}
+  h1 .logo-text span:nth-child(4){animation-delay:.27s;}
+  h1 .logo-text span:nth-child(5){animation-delay:.36s;}
+  h1 .logo-text span:nth-child(6){animation-delay:.45s;}
+  h1 .logo-text span:nth-child(7){animation-delay:.54s;}
+  @keyframes logoWiggle{
+    0%, 100%{transform:translateY(0) rotate(0deg);}
+    25%{transform:translateY(-3px) rotate(-6deg);}
+    50%{transform:translateY(0) rotate(0deg);}
+    75%{transform:translateY(3px) rotate(6deg);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    h1 .logo-text span{animation:none;}
+  }
   .theme-toggle{
     display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--line);
     border-radius:999px; padding:8px 14px; font-size:12px; font-weight:700; color:var(--sub);
@@ -395,7 +415,7 @@
         <rect x="22" y="26" width="26" height="20" rx="5" fill="#fff9f5"/>
         <polygon points="30,32 30,42 40,36" fill="#c1613e"/>
       </svg>
-      DayLoop
+      <span class="logo-text" aria-label="DayLoop"><span aria-hidden="true">D</span><span aria-hidden="true">a</span><span aria-hidden="true">y</span><span aria-hidden="true">L</span><span aria-hidden="true">o</span><span aria-hidden="true">o</span><span aria-hidden="true">p</span></span>
     </h1>
     <button type="button" class="theme-toggle" id="themeToggle" aria-label="ダークモードを切り替え">
       <span id="themeIcon" aria-hidden="true">🌞</span><span id="themeLabel">ライト</span>
