@@ -454,6 +454,12 @@
       ここに動画をドラッグ&ドロップ、またはクリックして選択（複数選択可）
       <input type="file" id="fileInput" accept="video/*" multiple>
     </div>
+    <!-- スマホ（特にiPhone）で動画を複数選んだ直後、写真アプリ側の読み込み（iCloud上の動画のダウンロード等）に
+         時間がかかり、選択画面がすぐには閉じないことがある。何も起きていないように見えて不安にならないよう、
+         事前に心構えとして表示しておく注意書き。 -->
+    <p class="lead" style="margin:8px 0 0; font-size:12px;">
+      たくさん選んだ場合、写真アプリ側の読み込みに時間がかかり、選択画面がすぐに閉じないことがあります。そのまま少し待ってみてください。
+    </p>
     <div class="note-warning">
       <span class="icon" aria-hidden="true">⚠️</span>
       <span>
@@ -709,8 +715,7 @@
     simple: (captionFile, memoFile, target, letterboxBarHeight, wiggle) => {
       const fontSize = Math.round(target.height * 0.023);
       const borderw = Math.max(2, Math.round(fontSize * 0.06));
-      let base = `drawtext=fontfile=font.ttf:fontcolor=white:borderw=${borderw}:bordercolor=black`;
-      if(wiggle) base += ':eval=frame';
+      const base = `drawtext=fontfile=font.ttf:fontcolor=white:borderw=${borderw}:bordercolor=black`;
       return buildCenteredStack(base, captionFile, memoFile, fontSize, null, wiggle);
     },
     // 映画字幕風：やや小さめの文字を、画面下部の半透明の黒帯の上に表示する。
@@ -720,9 +725,8 @@
       const fontSize = Math.round(target.height * 0.017);
       const boxBorder = Math.round(fontSize * 0.35);
       const bottomMargin = Math.round(target.height * 0.08);
-      let base = `drawtext=fontfile=font.ttf:fontcolor=white:` +
+      const base = `drawtext=fontfile=font.ttf:fontcolor=white:` +
         `box=1:boxcolor=black@0.55:boxborderw=${boxBorder}:borderw=1:bordercolor=black@0.5`;
-      if(wiggle) base += ':eval=frame';
       if(letterboxBarHeight && letterboxBarHeight > 0){
         return buildCenteredStack(base, captionFile, memoFile, fontSize, `h-${letterboxBarHeight}/2`, wiggle);
       }
@@ -731,15 +735,16 @@
     // 映画風：フチなしの白文字＋影のみ。装飾を削ぎ落とした繊細な見た目。画面中央に表示。
     cinema: (captionFile, memoFile, target, letterboxBarHeight, wiggle) => {
       const fontSize = Math.round(target.height * 0.022);
-      let base = `drawtext=fontfile=font.ttf:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
-      if(wiggle) base += ':eval=frame';
+      const base = `drawtext=fontfile=font.ttf:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
       return buildCenteredStack(base, captionFile, memoFile, fontSize, null, wiggle);
     },
   };
 
   // ウニョウニョ演出：時刻・テロップの文字を、サイン波で上下・左右にゆらゆら揺らす。
-  // drawtextのx/yは既定では初期化時に一度だけ評価されるため、呼び出し元でbaseに
-  // eval=frameを付けて毎フレーム再評価させ、t（経過秒数）を使ったサイン波が効くようにしている。
+  // drawtextのx/y/text各オプションは"T"フラグ（コマンド対応＝フレームごとに再評価）付きのため、
+  // tを使った式を渡すだけで自動的に毎フレーム再評価される
+  // （かつてのeval=init/frameオプションは現行のffmpegには存在せず、指定すると
+  // 「Option not found」でフィルタ初期化に失敗してしまうため、付与しないようにしている）。
   // テロップ本文と時刻とで周期・位相をずらすことで、2行がきれいに揃いすぎず、
   // それぞれ少し違うタイミングでふにゃふにゃ動く「ウニョウニョ」感を出している。
   function wiggleTerms(fontSize, phase){
