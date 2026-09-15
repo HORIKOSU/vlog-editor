@@ -255,21 +255,22 @@
   .radiogroup input:checked + span{color:#fff;}
   .radiogroup label:has(input:checked){background:var(--accent-btn); color:#fff;}
   .radiogroup label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px;}
-  /* ドロップダウン（select）の代わりに使う、縦1列に積む丸みの強いピル型選択ボタン。
+  /* ドロップダウン（select）の代わりに使う丸みの強いピル型選択ボタン。
      選択肢の説明が長いものもあるため、中央揃えの短いラベルではなく左揃えで
      「名称（太字）＋補足説明（小さめ・控えめな色）」を縦2段に並べる構成にしている。
-     1カラム（縦積み）で表示し、横に並べたグリッドにはしない。
+     横に並べ、入りきらない分は自然に折り返す（幅が狭い時だけ結果的に縦積みになる）。
      全体を1本の帯（トラック）として見せ、未選択の項目はトラック上のプレーンな
      テキストのまま個別の枠や影を持たせず、選択中の項目だけをトラック内に
      はめ込まれた塗りつぶしピルとしてハイライトする（セグメントコントロール型）。 */
   .pill-select{
-    display:flex; flex-direction:column; gap:2px;
+    display:flex; flex-flow:row wrap; gap:2px;
     background:var(--neutral-bg); border:1.5px solid var(--neutral-border);
     border-radius:22px; padding:6px;
   }
   .pill-select label{
     display:flex; flex-direction:column; text-align:left; padding:10px 16px;
     border-radius:16px; cursor:pointer; background:transparent;
+    flex:1 1 140px; min-width:0;
     transition:background .15s, color .15s;
   }
   .pill-select label:hover:not(:has(input:checked)){background:var(--card);}
@@ -607,7 +608,7 @@
 
       <div class="bento-cell bento-fx">
         <div class="subhead" style="padding-top:0; border-top:none;">映像エフェクト</div>
-        <div class="toggle-grid" style="grid-template-columns:1fr; margin-bottom:0;">
+        <div class="toggle-grid" style="margin-bottom:0;">
           <label class="checkbox-field"><input type="checkbox" id="durationJitter" checked><span>各クリップの長さに少しランダムなブレを加える</span></label>
           <label class="checkbox-field"><input type="checkbox" id="filmGrain" checked><span>フィルムグレイン（粒子感）を加える</span></label>
           <label class="checkbox-field"><input type="checkbox" id="vignette"><span>ヴィネット（周辺減光）を加える</span></label>
