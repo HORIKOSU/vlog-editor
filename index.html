@@ -750,9 +750,12 @@
   function wiggleTerms(fontSize, phase){
     const ampY = Math.max(2, Math.round(fontSize * 0.08));
     const ampX = Math.max(2, Math.round(fontSize * 0.05));
+    // 周期を短くする（＝周波数を上げる）ほど、揺れが速く小刻みになる。
+    // 以前は1.8秒/2.3秒周期のゆったりした揺れだったが、「もっと速く・小刻みに」という
+    // 要望を受けて、0.55秒/0.7秒周期の細かい震え方に変更した（揺れ幅はそのまま）。
     return {
-      x: `+${ampX}*sin(2*PI*t/2.3+${phase})`,
-      y: `+${ampY}*sin(2*PI*t/1.8+${(phase + 1.1).toFixed(2)})`,
+      x: `+${ampX}*sin(2*PI*t/0.7+${phase})`,
+      y: `+${ampY}*sin(2*PI*t/0.55+${(phase + 1.1).toFixed(2)})`,
     };
   }
 
