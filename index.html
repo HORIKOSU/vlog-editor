@@ -140,7 +140,7 @@
   .theme-toggle{
     display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--line);
     border-radius:999px; padding:8px 14px; font-size:12px; font-weight:700; color:var(--sub);
-    box-shadow:var(--shadow-sm); cursor:pointer; flex-shrink:0; margin-top:2px;
+    cursor:pointer; flex-shrink:0; margin-top:2px;
     transition:transform .1s;
   }
   .theme-toggle:active{transform:scale(.96);}
@@ -230,26 +230,30 @@
   .stepper button{
     width:40px; height:40px; flex-shrink:0; border-radius:999px; border:1.5px solid var(--accent);
     background:var(--card); font-size:17px; font-weight:800; color:var(--accent-dark); cursor:pointer;
-    box-shadow:var(--shadow-sm);
-    transition:background .15s, transform .1s, box-shadow .1s, color .15s;
+    transition:background .15s, transform .1s, color .15s;
   }
   .stepper button:hover:not(:active){background:var(--accent-soft);}
   .stepper button:active{
-    transform:scale(.94); box-shadow:var(--shadow-inset);
+    transform:scale(.94);
     background:var(--accent-btn); border-color:var(--accent-btn); color:#fff;
   }
-  .radiogroup{display:flex; gap:10px;}
-  .radiogroup label{
-    flex:1; text-align:center; padding:11px 6px; border:1.5px solid var(--line);
-    border-radius:999px; font-size:12px; cursor:pointer; color:var(--sub); font-weight:600;
-    box-shadow:var(--shadow-sm);
-    transition:background .15s, border-color .15s, color .15s, box-shadow .15s;
+  /* .pill-selectと同じセグメントコントロール型：1本の帯（トラック）の中に選択肢を並べ、
+     未選択は枠なしのプレーンテキスト、選択中の項目だけ帯にはめ込まれた塗りつぶしピルにする。 */
+  .radiogroup{
+    display:flex; gap:2px; background:var(--neutral-bg); border:1.5px solid var(--neutral-border);
+    border-radius:999px; padding:4px;
   }
+  .radiogroup label{
+    flex:1; text-align:center; padding:9px 6px; border-radius:999px; background:transparent;
+    font-size:12px; cursor:pointer; color:var(--sub); font-weight:600;
+    transition:background .15s, color .15s;
+  }
+  .radiogroup label:hover:not(:has(input:checked)){background:var(--card);}
   /* ラジオボタン本体はdisplay:noneにせず、視覚的には隠しつつフォーカス可能な状態を保つ
      （Tabキーで選択でき、フォーカス時はラベル側にフォーカスリングを表示する）。 */
   .radiogroup input{position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;}
   .radiogroup input:checked + span{color:#fff;}
-  .radiogroup label:has(input:checked){background:var(--accent-btn); border-color:var(--accent-btn); color:#fff; box-shadow:var(--shadow-inset);}
+  .radiogroup label:has(input:checked){background:var(--accent-btn); color:#fff;}
   .radiogroup label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px;}
   /* ドロップダウン（select）の代わりに使う、縦1列に積む丸みの強いピル型選択ボタン。
      選択肢の説明が長いものもあるため、中央揃えの短いラベルではなく左揃えで
@@ -261,7 +265,7 @@
   .pill-select{
     display:flex; flex-direction:column; gap:2px;
     background:var(--neutral-bg); border:1.5px solid var(--neutral-border);
-    border-radius:22px; padding:6px; box-shadow:var(--shadow-inset);
+    border-radius:22px; padding:6px;
   }
   .pill-select label{
     display:flex; flex-direction:column; text-align:left; padding:10px 16px;
@@ -272,7 +276,7 @@
   .pill-select input{position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;}
   .pill-select .psi-main{font-size:13px; font-weight:700; color:var(--ink);}
   .pill-select .psi-sub{font-size:11.5px; font-weight:500; color:var(--sub); margin-top:2px;}
-  .pill-select label:has(input:checked){background:var(--accent-btn); box-shadow:var(--shadow-sm);}
+  .pill-select label:has(input:checked){background:var(--accent-btn);}
   .pill-select label:has(input:checked) .psi-main{color:#fff;}
   .pill-select label:has(input:checked) .psi-sub{color:rgba(255,255,255,.82);}
   .pill-select label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px;}
@@ -330,13 +334,19 @@
   button.secondary{
     margin-top:6px; padding:14px 22px; min-height:46px; border:1.5px solid var(--neutral-border); border-radius:999px;
     background:var(--neutral-bg); color:var(--neutral-ink); font-size:13px; font-weight:700; cursor:pointer;
-    box-shadow:var(--shadow-sm);
     display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
-    transition:background .15s, transform .1s, box-shadow .1s;
+    transition:background .15s, transform .1s;
   }
   button.secondary:hover:not(:disabled){background:var(--line);}
-  button.secondary:active:not(:disabled){transform:scale(.97); box-shadow:var(--shadow-inset);}
+  button.secondary:active:not(:disabled){transform:scale(.97);}
   button.secondary:disabled{opacity:.5; cursor:not-allowed;}
+  /* 「並び替え」「自動入力」の2つの補助ボタンは横並びにする（縦積みにしない）。
+     幅が狭い画面ではラベルが収まらなくなるので折り返す。 */
+  .button-row{display:flex; gap:10px; margin-top:6px;}
+  .button-row button.secondary{
+    width:auto; min-width:0; flex:1 1 0; margin-top:0;
+    white-space:normal; line-height:1.3; text-align:center;
+  }
   .sort-status{font-size:11px; color:var(--sub); margin-top:8px; min-height:14px;}
   /* 状態バッジ：進行中(accent)・完了(success)・エラー(error)を色とアイコンの
      両方で区別する（色だけに頼らないよう、テキストの前に丸いドットも付ける）。
@@ -356,7 +366,6 @@
   button.primary{
     width:100%; padding:20px; min-height:56px; border:none; border-radius:999px;
     background:var(--accent-btn); color:#fff; font-size:17px; font-weight:800; cursor:pointer;
-    box-shadow:0 12px 26px rgba(193,97,62,.35), inset 0 1px 0 rgba(255,255,255,.22);
     transition:background .15s, transform .1s;
     position:relative; overflow:hidden; isolation:isolate;
   }
@@ -520,9 +529,11 @@
     </div>
     <div class="status-badge" id="uploadStatus"></div>
     <ul id="clipList"></ul>
-    <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
+    <div class="button-row">
+      <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
+      <button type="button" class="secondary" id="autoFillCaptionBtn">⏰ 撮影時刻を時刻欄に自動入力</button>
+    </div>
     <div class="status-badge" id="sortStatus"></div>
-    <button type="button" class="secondary" id="autoFillCaptionBtn">⏰ 撮影時刻を時刻欄に自動入力</button>
     <div class="status-badge" id="fillStatus"></div>
     <div class="estimate" id="estimate"></div>
   </div>
