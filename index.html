@@ -76,31 +76,35 @@
      塗りつぶし＋濃紺文字にして、紺一色にならないようにしている
      （文字色は--accent-btn-ink/--accent-btn-ink-softで切り替え）。
      エラーには参考画像のピンクのスライダーに近い色を採用した。 */
+  /* ダークテーマ2：黒ベース×ライトグリーンの配色。上のナビー案の構造（bg/card/ink/
+     accent-btn-ink等のトークン設計）はそのまま流用し、色相だけを黒×グリーンに
+     差し替えている。--successは元々ライトグリーンだったため、--accentと被らない
+     よう据え置きつつ--accent-softのトーンで書体を書き分けている。 */
   :root[data-theme="dark"]{
-    --accent:#e8c68f;
-    --accent-dark:#f2d9ae;
-    --accent-soft:#6b5a3a;
-    --bg:#2e2a4d;
-    --card:#403c66;
-    --ink:#f4eee0;
-    --sub:#b6a9c9;
-    --line:#524c7d;
-    --thumb-bg:#3a3560;
-    --drop-border:#6f639c;
-    --btn-disabled-bg:#423d68;
-    --btn-dark-bg:#1c1a36;
-    --accent-btn:#e8c68f;
-    --accent-btn-hover:#d1a768;
-    --accent-btn-ink:#1c1a36;
-    --accent-btn-ink-soft:rgba(28,26,54,.72);
+    --accent:#9fdba8;
+    --accent-dark:#bdeac3;
+    --accent-soft:#3a4a35;
+    --bg:#131513;
+    --card:#1d211d;
+    --ink:#eef2ec;
+    --sub:#93a190;
+    --line:#2b322b;
+    --thumb-bg:#23271f;
+    --drop-border:#4b5c48;
+    --btn-disabled-bg:#262a22;
+    --btn-dark-bg:#0b0d0b;
+    --accent-btn:#9fdba8;
+    --accent-btn-hover:#86c690;
+    --accent-btn-ink:#10150f;
+    --accent-btn-ink-soft:rgba(16,21,15,.72);
     --error:#f4998a;
-    --neutral-bg:#3a3560;
-    --neutral-border:#504a78;
-    --neutral-ink:#cdc2df;
+    --neutral-bg:#20241e;
+    --neutral-border:#343c31;
+    --neutral-ink:#c4cdc0;
     --success:#8fd6ab;
-    --success-soft:#253d33;
-    --danger-soft:#4a2c34;
-    --shadow-d:rgba(0,0,0,.55);
+    --success-soft:#203327;
+    --danger-soft:#3a2420;
+    --shadow-d:rgba(0,0,0,.6);
   }
   *{box-sizing:border-box;}
   body{
