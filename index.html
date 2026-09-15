@@ -516,6 +516,11 @@
         <label class="checkbox-field"><input type="checkbox" id="letterbox"><span>映画風レターボックス（上下に黒帯）を追加</span></label>
       </div>
     </div>
+    <div class="row">
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="telopWiggle"><span>時刻・テロップをゆらゆら揺らす（ウニョウニョ）</span></label>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -701,33 +706,50 @@
   // （1つのdrawtextに2行まとめて渡すと、左揃えになってしまい中央揃えにならないため）。
   const TELOP_STYLES = {
     // シンプル：白文字＋黒フチのみ。画面中央に表示する定番スタイル。
-    simple: (captionFile, memoFile, target) => {
+    simple: (captionFile, memoFile, target, letterboxBarHeight, wiggle) => {
       const fontSize = Math.round(target.height * 0.023);
       const borderw = Math.max(2, Math.round(fontSize * 0.06));
-      const base = `drawtext=fontfile=font.ttf:fontcolor=white:borderw=${borderw}:bordercolor=black`;
-      return buildCenteredStack(base, captionFile, memoFile, fontSize);
+      let base = `drawtext=fontfile=font.ttf:fontcolor=white:borderw=${borderw}:bordercolor=black`;
+      if(wiggle) base += ':eval=frame';
+      return buildCenteredStack(base, captionFile, memoFile, fontSize, null, wiggle);
     },
     // 映画字幕風：やや小さめの文字を、画面下部の半透明の黒帯の上に表示する。
     // 「映画風レターボックス」がオンの場合は、黒帯の境界線をまたいで表示されてしまわないよう、
     // 黒帯の中央に来るように位置を切り替える（黒帯がない場合は画面下端からの固定マージン）。
-    subtitle: (captionFile, memoFile, target, letterboxBarHeight) => {
+    subtitle: (captionFile, memoFile, target, letterboxBarHeight, wiggle) => {
       const fontSize = Math.round(target.height * 0.017);
       const boxBorder = Math.round(fontSize * 0.35);
       const bottomMargin = Math.round(target.height * 0.08);
-      const base = `drawtext=fontfile=font.ttf:fontcolor=white:` +
+      let base = `drawtext=fontfile=font.ttf:fontcolor=white:` +
         `box=1:boxcolor=black@0.55:boxborderw=${boxBorder}:borderw=1:bordercolor=black@0.5`;
+      if(wiggle) base += ':eval=frame';
       if(letterboxBarHeight && letterboxBarHeight > 0){
-        return buildCenteredStack(base, captionFile, memoFile, fontSize, `h-${letterboxBarHeight}/2`);
+        return buildCenteredStack(base, captionFile, memoFile, fontSize, `h-${letterboxBarHeight}/2`, wiggle);
       }
-      return buildBottomAnchoredStack(base, captionFile, memoFile, fontSize, `h-${bottomMargin}`);
+      return buildBottomAnchoredStack(base, captionFile, memoFile, fontSize, `h-${bottomMargin}`, wiggle);
     },
     // 映画風：フチなしの白文字＋影のみ。装飾を削ぎ落とした繊細な見た目。画面中央に表示。
-    cinema: (captionFile, memoFile, target) => {
+    cinema: (captionFile, memoFile, target, letterboxBarHeight, wiggle) => {
       const fontSize = Math.round(target.height * 0.022);
-      const base = `drawtext=fontfile=font.ttf:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
-      return buildCenteredStack(base, captionFile, memoFile, fontSize);
+      let base = `drawtext=fontfile=font.ttf:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
+      if(wiggle) base += ':eval=frame';
+      return buildCenteredStack(base, captionFile, memoFile, fontSize, null, wiggle);
     },
   };
+
+  // ウニョウニョ演出：時刻・テロップの文字を、サイン波で上下・左右にゆらゆら揺らす。
+  // drawtextのx/yは既定では初期化時に一度だけ評価されるため、呼び出し元でbaseに
+  // eval=frameを付けて毎フレーム再評価させ、t（経過秒数）を使ったサイン波が効くようにしている。
+  // テロップ本文と時刻とで周期・位相をずらすことで、2行がきれいに揃いすぎず、
+  // それぞれ少し違うタイミングでふにゃふにゃ動く「ウニョウニョ」感を出している。
+  function wiggleTerms(fontSize, phase){
+    const ampY = Math.max(2, Math.round(fontSize * 0.08));
+    const ampX = Math.max(2, Math.round(fontSize * 0.05));
+    return {
+      x: `+${ampX}*sin(2*PI*t/2.3+${phase})`,
+      y: `+${ampY}*sin(2*PI*t/1.8+${(phase + 1.1).toFixed(2)})`,
+    };
+  }
 
   // 時刻の文字サイズ（テロップの65%）と、テロップ・時刻の間の余白を、テロップの
   // フォントサイズから算出する共通ヘルパー。行の高さは実測できないため
@@ -744,36 +766,42 @@
   // テロップ（メモ欄の文字、大きめ）を画面中央（または指定したcenterY）にちょうど
   // 配置し、時刻（テロップ欄の文字、小さめ）はその少し上に余白を空けて表示する。
   // どちらか一方しかない場合は、それを通常サイズの1行として中央に表示する。
-  function buildCenteredStack(base, captionFile, memoFile, mainFontSize, centerYExpr){
+  function buildCenteredStack(base, captionFile, memoFile, mainFontSize, centerYExpr, wiggle){
     const centerY = centerYExpr || 'h/2';
     if(captionFile && memoFile){
       const { memoFontSize: timeFontSize, gap, mainLineH, memoLineH: timeLineH } = memoLayout(mainFontSize);
       const telopY = `(${centerY})-${mainLineH}/2`;
       const timeY = `${telopY}-${gap}-${timeLineH}`;
+      const wMain = wiggle ? wiggleTerms(mainFontSize, 0) : null;
+      const wTime = wiggle ? wiggleTerms(timeFontSize, 1.7) : null;
       return [
-        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${telopY}`,
-        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2:y=${timeY}`,
+        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2${wMain ? wMain.x : ''}:y=${telopY}${wMain ? wMain.y : ''}`,
+        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2${wTime ? wTime.x : ''}:y=${timeY}${wTime ? wTime.y : ''}`,
       ].join(',');
     }
     const onlyFile = captionFile || memoFile;
-    return `${base}:textfile=${onlyFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=(${centerY})-text_h/2`;
+    const w = wiggle ? wiggleTerms(mainFontSize, 0) : null;
+    return `${base}:textfile=${onlyFile}:fontsize=${mainFontSize}:x=(w-text_w)/2${w ? w.x : ''}:y=(${centerY})-text_h/2${w ? w.y : ''}`;
   }
 
   // 下端からの余白（bottomYExpr＝テロップ（メモ欄の文字、大きめ）の下端をここに
   // 合わせる）を基準に、時刻（テロップ欄の文字、小さめ）をその少し上に表示する
   // （字幕風スタイルの、黒帯なし時に使用）。
-  function buildBottomAnchoredStack(base, captionFile, memoFile, mainFontSize, bottomYExpr){
+  function buildBottomAnchoredStack(base, captionFile, memoFile, mainFontSize, bottomYExpr, wiggle){
     if(captionFile && memoFile){
       const { memoFontSize: timeFontSize, gap, mainLineH, memoLineH: timeLineH } = memoLayout(mainFontSize);
       const telopY = `${bottomYExpr}-${mainLineH}`;
       const timeY = `${telopY}-${gap}-${timeLineH}`;
+      const wMain = wiggle ? wiggleTerms(mainFontSize, 0) : null;
+      const wTime = wiggle ? wiggleTerms(timeFontSize, 1.7) : null;
       return [
-        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${telopY}`,
-        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2:y=${timeY}`,
+        `${base}:textfile=${memoFile}:fontsize=${mainFontSize}:x=(w-text_w)/2${wMain ? wMain.x : ''}:y=${telopY}${wMain ? wMain.y : ''}`,
+        `${base}:textfile=${captionFile}:fontsize=${timeFontSize}:x=(w-text_w)/2${wTime ? wTime.x : ''}:y=${timeY}${wTime ? wTime.y : ''}`,
       ].join(',');
     }
     const onlyFile = captionFile || memoFile;
-    return `${base}:textfile=${onlyFile}:fontsize=${mainFontSize}:x=(w-text_w)/2:y=${bottomYExpr}-text_h`;
+    const w = wiggle ? wiggleTerms(mainFontSize, 0) : null;
+    return `${base}:textfile=${onlyFile}:fontsize=${mainFontSize}:x=(w-text_w)/2${w ? w.x : ''}:y=${bottomYExpr}-text_h${w ? w.y : ''}`;
   }
 
   let clips = []; // {file, width, height, duration, speed}
@@ -1254,6 +1282,7 @@
     const style = document.getElementById('style').value;
     const styleFilter = STYLE_PRESETS[style];
     const telopStyle = document.getElementById('telopStyle').value;
+    const telopWiggle = document.getElementById('telopWiggle').checked;
     const outName = document.getElementById('outName').value.trim() || 'vlog_result.mp4';
     const letterboxEnabled = document.getElementById('letterbox').checked;
     const fps = parseInt(document.getElementById('fps').value, 10) || 30;
@@ -1466,7 +1495,7 @@
         }
         if(captionFile || memoFile){
           const buildTelopFilter = TELOP_STYLES[telopStyle] || TELOP_STYLES.simple;
-          vfParts.push(buildTelopFilter(captionFile, memoFile, target, letterboxBarHeight));
+          vfParts.push(buildTelopFilter(captionFile, memoFile, target, letterboxBarHeight, telopWiggle));
         }
 
         const afParts = [];
