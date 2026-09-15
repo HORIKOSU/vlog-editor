@@ -35,6 +35,8 @@
     --accent-soft:#f3e2d8;
     --accent-btn:#c1613e;
     --accent-btn-hover:#9c4c30;
+    --accent-btn-ink:#fff;
+    --accent-btn-ink-soft:rgba(255,255,255,.82);
     --bg:#faf6f2;
     --card:#fff9f5;
     --ink:#2b2420;
@@ -68,15 +70,16 @@
   /* ダークテーマ：ナビー×クリームの配色イメージを取り入れた配色。
      背景は濃紺（#2e2a4d）、カードはひとまわり明るい紺（#403c66）にして
      「カードが浮いて見える」という元のライト/ダークテーマの明暗ルールは崩さずに
-     色相だけをナビーに寄せている。プライマリボタンのみ、参考画像の「クリームの
-     カードの上に置かれた濃紺の丸ボタン」に合わせて、他の色よりさらに暗いネイビーの
-     塗りつぶし＋白文字にしている（テラコッタの代わりに、この配色専用の色を指定）。
-     アクセント（バッジのチップなど）にはクリーム系、エラーには参考画像のピンクの
-     スライダーに近い色を採用した。 */
+     色相だけをナビーに寄せている。参考画像は紺の背景に対してクリーム色の
+     カード・ボタンを大きめに配置して色味に変化を付けているため、ボタンの塗り
+     つぶしや選択状態・進捗バーなど「押せる/選ばれている」要素はクリーム系の
+     塗りつぶし＋濃紺文字にして、紺一色にならないようにしている
+     （文字色は--accent-btn-ink/--accent-btn-ink-softで切り替え）。
+     エラーには参考画像のピンクのスライダーに近い色を採用した。 */
   :root[data-theme="dark"]{
     --accent:#e8c68f;
     --accent-dark:#f2d9ae;
-    --accent-soft:#3d3860;
+    --accent-soft:#6b5a3a;
     --bg:#2e2a4d;
     --card:#403c66;
     --ink:#f4eee0;
@@ -86,8 +89,10 @@
     --drop-border:#6f639c;
     --btn-disabled-bg:#423d68;
     --btn-dark-bg:#1c1a36;
-    --accent-btn:#232048;
-    --accent-btn-hover:#2f2b5c;
+    --accent-btn:#e8c68f;
+    --accent-btn-hover:#d1a768;
+    --accent-btn-ink:#1c1a36;
+    --accent-btn-ink-soft:rgba(28,26,54,.72);
     --error:#f4998a;
     --neutral-bg:#3a3560;
     --neutral-border:#504a78;
@@ -171,7 +176,7 @@
   ul#clipList li .actions{display:flex; gap:4px; flex-shrink:0;}
   ul#clipList li .idx{
     width:24px; height:24px; border-radius:50%; background:var(--accent-btn);
-    color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    color:var(--accent-btn-ink); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
   ul#clipList li .thumb{
@@ -197,7 +202,7 @@
   }
   .row{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;}
   .field{flex:1; min-width:140px;}
-  .field label{display:block; font-size:13px; color:var(--accent-dark); margin-bottom:8px; font-weight:800;}
+  .field label{display:block; font-size:13px; color:var(--accent-dark); margin-bottom:8px; font-weight:800; white-space:nowrap;}
   .field input[type=number], .field input[type=text], .field select{
     width:100%; padding:11px 14px; border:1.5px solid var(--line); border-radius:14px;
     font-size:13px; background:var(--card); color:var(--ink); font-family:inherit;
@@ -220,7 +225,9 @@
   /* BGM音量／元動画の音量を横に並べたとき、片方のラベルだけ折り返して2行になると
      セレクトボックスの開始位置がズレてバランスが悪く見えるため、ラベル欄の高さを
      2行分そろえておく（テキスト量に関わらず常にセレクトの開始位置が揃う）。 */
-  .bento-bgm .field label{min-height:2.5em;}
+  /* 1カラム化に伴い、旧2カラムベントの高さ揃え用min-heightは不要になったため削除。
+     見出しとボタンの余白も詰める。 */
+  .bento-bgm .field label{margin-bottom:4px;}
   /* 数値入力のステッパー（＋／－ボタン）。数字をタップで打つ手間を減らすため。
      枠線＋アクセントカラーの丸いピル型ボタンにして、押したときだけ塗りつぶしに
      切り替わるようにしている（「②編集設定」内の操作ボタンは、未選択＝アウトライン／
@@ -235,7 +242,7 @@
   .stepper button:hover:not(:active){background:var(--accent-soft);}
   .stepper button:active{
     transform:scale(.94);
-    background:var(--accent-btn); border-color:var(--accent-btn); color:#fff;
+    background:var(--accent-btn); border-color:var(--accent-btn); color:var(--accent-btn-ink);
   }
   /* ボタンは全て1本の帯にまとめず、選択肢ごとに独立した枠線付きボタンにする
      （未選択＝アウトライン、選択＝塗りつぶし。影は使わずフラットのまま）。 */
@@ -249,7 +256,7 @@
      （Tabキーで選択でき、フォーカス時はラベル側にフォーカスリングを表示する）。 */
   .radiogroup input{position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;}
   .radiogroup input:checked + span{color:#fff;}
-  .radiogroup label:has(input:checked){background:var(--accent-btn); border-color:var(--accent-btn); color:#fff;}
+  .radiogroup label:has(input:checked){background:var(--accent-btn); border-color:var(--accent-btn); color:var(--accent-btn-ink);}
   .radiogroup label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px;}
   /* ドロップダウン（select）の代わりに使う、選択肢ごとに独立した丸みの強いピル型選択ボタン。
      選択肢の説明が長いものもあるため、中央揃えの短いラベルではなく左揃えで
@@ -264,13 +271,16 @@
   }
   /* 色味スタイル・テロップデザインは折り返さず横1列に収める（幅に合わせて等分に縮む）。 */
   #styleGroup, #telopStyleGroup{flex-wrap:nowrap;}
-  #styleGroup label, #telopStyleGroup label{flex:1 1 0;}
+  #styleGroup label, #telopStyleGroup label{flex:1 1 0; padding-left:8px; padding-right:8px;}
+  /* 「シネマティック」など長めのラベルが折り返さないよう、この2グループだけ文字を少し小さくする。 */
+  #styleGroup .psi-main, #telopStyleGroup .psi-main{font-size:12px; white-space:nowrap;}
+  #styleGroup .psi-sub, #telopStyleGroup .psi-sub{font-size:10.5px;}
   .pill-select input{position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;}
   .pill-select .psi-main{font-size:13px; font-weight:700; color:var(--ink);}
   .pill-select .psi-sub{font-size:11.5px; font-weight:500; color:var(--sub); margin-top:2px;}
   .pill-select label:has(input:checked){background:var(--accent-btn); border-color:var(--accent-btn);}
-  .pill-select label:has(input:checked) .psi-main{color:#fff;}
-  .pill-select label:has(input:checked) .psi-sub{color:rgba(255,255,255,.82);}
+  .pill-select label:has(input:checked) .psi-main{color:var(--accent-btn-ink);}
+  .pill-select label:has(input:checked) .psi-sub{color:var(--accent-btn-ink-soft);}
   .pill-select label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px;}
   .checkbox-field{
     display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1.5px solid var(--line);
@@ -308,23 +318,22 @@
   }
   .tip-item:last-child{border-bottom:none; padding-bottom:0;}
   .tip-item:first-child{padding-top:0;}
-  .tip-icon{
-    width:26px; height:26px; font-size:15px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-  }
   .tip-text{font-size:13px; color:var(--ink); font-weight:500; line-height:1.6;}
   .estimate{font-size:12px; color:var(--sub); margin-top:6px;}
   /* セカンダリボタン（並び替え・自動入力など補助操作）はニュートラル色にして、
      オレンジ＝「これが本命の操作（プライマリボタン）」という意味に絞る。 */
+  /* 「押せるボタン」だと一目で分かるように、枠線だけでなく軽い影も付けて
+     カード等の他の要素と見分けやすくする（影は控えめに留める）。 */
   button.secondary{
     margin-top:6px; padding:14px 22px; min-height:46px; border:1.5px solid var(--neutral-border); border-radius:14px;
     background:var(--neutral-bg); color:var(--neutral-ink); font-size:13px; font-weight:700; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
-    transition:background .15s, transform .1s;
+    box-shadow:var(--shadow-sm);
+    transition:background .15s, transform .1s, box-shadow .1s;
   }
   button.secondary:hover:not(:disabled){background:var(--line);}
-  button.secondary:active:not(:disabled){transform:scale(.97);}
-  button.secondary:disabled{opacity:.5; cursor:not-allowed;}
+  button.secondary:active:not(:disabled){transform:scale(.97); box-shadow:var(--shadow-inset);}
+  button.secondary:disabled{opacity:.5; cursor:not-allowed; box-shadow:none;}
   /* 「並び替え」「自動入力」の2つの補助ボタンは、横に並べて詰め込まず
      ボタンごとに独立させる（それぞれ1行ずつ、全幅で表示）。 */
   .button-row{display:flex; flex-direction:column; gap:10px; margin-top:6px;}
@@ -347,7 +356,7 @@
   .status-badge.is-error{background:var(--danger-soft); color:var(--error);}
   button.primary{
     width:100%; padding:20px; min-height:56px; border:none; border-radius:16px;
-    background:var(--accent-btn); color:#fff; font-size:17px; font-weight:800; cursor:pointer;
+    background:var(--accent-btn); color:var(--accent-btn-ink); font-size:17px; font-weight:800; cursor:pointer;
     transition:background .15s, transform .1s;
     position:relative; overflow:hidden; isolation:isolate;
   }
@@ -362,7 +371,8 @@
   }
   .btn-spinner{
     width:17px; height:17px; border-radius:50%; flex-shrink:0;
-    border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff;
+    border:2.5px solid color-mix(in srgb, var(--accent-btn-ink) 35%, transparent);
+    border-top-color:var(--accent-btn-ink);
     animation:btnSpin .8s linear infinite;
   }
   @keyframes btnSpin{to{transform:rotate(360deg);}}
@@ -392,7 +402,7 @@
   /* 処理完了時に表示するチェックマークのポップアニメーション。 */
   .status .check-pop{
     display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px;
-    border-radius:50%; background:var(--accent-btn); color:#fff; font-size:10px; flex-shrink:0;
+    border-radius:50%; background:var(--accent-btn); color:var(--accent-btn-ink); font-size:10px; flex-shrink:0;
     animation:checkPop .35s cubic-bezier(.34,1.56,.64,1);
   }
   @keyframes checkPop{
@@ -465,26 +475,21 @@
   </div>
 
   <div class="card">
-    <h2>📸 撮影のポイント</h2>
+    <h2>撮影のポイント</h2>
     <div class="tips-list">
       <div class="tip-item">
-        <div class="tip-icon">🔭</div>
         <div class="tip-text">広角で撮影する</div>
       </div>
       <div class="tip-item">
-        <div class="tip-icon">⏱</div>
         <div class="tip-text">3秒間立ち止まって、動くものを撮影する</div>
       </div>
       <div class="tip-item">
-        <div class="tip-icon">🚶</div>
         <div class="tip-text">ゆっくり歩いて、カメラは同じ方角のまま撮影する</div>
       </div>
       <div class="tip-item">
-        <div class="tip-icon">📹</div>
         <div class="tip-text">解像度は1080p HD、フレームレートは60fpsがおすすめ</div>
       </div>
       <div class="tip-item">
-        <div class="tip-icon">🌈</div>
         <div class="tip-text">「設定」→「カメラ」→「HDR動画を撮影」はオフ（自動調整のため）</div>
       </div>
     </div>
@@ -512,8 +517,8 @@
     <div class="status-badge" id="uploadStatus"></div>
     <ul id="clipList"></ul>
     <div class="button-row">
-      <button type="button" class="secondary" id="sortByTimeBtn">🔀 撮影時刻順に並び替え</button>
-      <button type="button" class="secondary" id="autoFillCaptionBtn">⏰ 撮影時刻を時刻欄に自動入力</button>
+      <button type="button" class="secondary" id="sortByTimeBtn">撮影時刻順に並び替え</button>
+      <button type="button" class="secondary" id="autoFillCaptionBtn">撮影時刻を時刻欄に自動入力</button>
     </div>
     <div class="status-badge" id="sortStatus"></div>
     <div class="status-badge" id="fillStatus"></div>
