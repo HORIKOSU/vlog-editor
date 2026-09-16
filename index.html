@@ -294,6 +294,12 @@
   }
   .checkbox-field:has(input:checked){background:var(--accent-soft); border-color:var(--accent); box-shadow:var(--shadow-inset);}
   .checkbox-field input{width:18px; height:18px; margin-top:2px; flex-shrink:0; accent-color:var(--accent-btn);}
+  /* 映画風レターボックスのチェックボックスは1行で収まる単独項目のため、
+     他のチェックボックス群（2カラムグリッドで幅いっぱいに広がる想定）とは違い、
+     横幅いっぱいに引き伸ばさずテキストに合わせた幅のチップにする。
+     チェックボックスとテキストの高さも中央揃えでバランスを取る。 */
+  .checkbox-field.solo{display:inline-flex; align-items:center;}
+  .checkbox-field.solo input{margin-top:0;}
   .subhead{
     font-size:12px; font-weight:800; color:var(--accent-dark); margin:0 0 10px;
     padding-top:16px; border-top:1px solid var(--line);
@@ -531,7 +537,7 @@
 
   <div class="card">
     <h2>② 編集設定</h2>
-    <div class="row">
+    <div class="row" style="flex-direction:column;">
       <div class="field">
         <label>1クリップあたりの秒数</label>
         <div class="stepper">
@@ -576,7 +582,7 @@
     </div>
     <div class="row">
       <div class="field">
-        <label class="checkbox-field"><input type="checkbox" id="letterbox"><span>映画風レターボックス（上下に黒帯）を追加</span></label>
+        <label class="checkbox-field solo"><input type="checkbox" id="letterbox"><span>映画風レターボックス（上下に黒帯）を追加</span></label>
       </div>
     </div>
   </div>
@@ -623,22 +629,22 @@
         <div class="row">
           <div class="field">
             <label>BGM音量</label>
-            <select id="bgmVolume">
-              <option value="0.15">小さめ</option>
-              <option value="0.3">普通</option>
-              <option value="0.5" selected>大きめ</option>
-              <option value="0.7">とても大きめ</option>
-            </select>
+            <div class="pill-select" id="bgmVolumeGroup">
+              <label><input type="radio" name="bgmVolume" value="0.15"><span class="psi-main">小さめ</span></label>
+              <label><input type="radio" name="bgmVolume" value="0.3"><span class="psi-main">普通</span></label>
+              <label><input type="radio" name="bgmVolume" value="0.5" checked><span class="psi-main">大きめ</span></label>
+              <label><input type="radio" name="bgmVolume" value="0.7"><span class="psi-main">とても大きめ</span></label>
+            </div>
           </div>
           <div class="field">
             <label>元動画の音量</label>
-            <select id="origVolumeWithBgm">
-              <option value="1" selected>通常（変更しない）</option>
-              <option value="0.7">少し小さめ</option>
-              <option value="0.5">小さめ</option>
-              <option value="0.3">かなり小さめ</option>
-              <option value="0">元動画の音を消す（BGMのみにする）</option>
-            </select>
+            <div class="pill-select" id="origVolumeWithBgmGroup">
+              <label><input type="radio" name="origVolumeWithBgm" value="1" checked><span class="psi-main">通常（変更しない）</span></label>
+              <label><input type="radio" name="origVolumeWithBgm" value="0.7"><span class="psi-main">少し小さめ</span></label>
+              <label><input type="radio" name="origVolumeWithBgm" value="0.5"><span class="psi-main">小さめ</span></label>
+              <label><input type="radio" name="origVolumeWithBgm" value="0.3"><span class="psi-main">かなり小さめ</span></label>
+              <label><input type="radio" name="origVolumeWithBgm" value="0"><span class="psi-main">元動画の音を消す（BGMのみにする）</span></label>
+            </div>
           </div>
         </div>
       </div>
@@ -1338,8 +1344,8 @@
     const bgmPresetPath = getRadioValue('bgmPreset') || '';
     const bgmFile = document.getElementById('bgmFile').files[0] || null;
     const bgmSource = bgmPresetPath || bgmFile;
-    const bgmVolume = document.getElementById('bgmVolume').value;
-    const origVolumeWithBgm = document.getElementById('origVolumeWithBgm').value;
+    const bgmVolume = getRadioValue('bgmVolume');
+    const origVolumeWithBgm = getRadioValue('origVolumeWithBgm');
 
     runBtn.disabled = true;
     // ボタン自体をスピナー＋「処理中...」表示に切り替える（高さは変わらないのでレイアウトは動かない）。
