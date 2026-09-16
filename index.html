@@ -226,11 +226,7 @@
   .field input[type=file]:hover::file-selector-button{background:var(--line);}
   .field input[type=file]:disabled{opacity:.5;}
   .field input[type=file]:disabled::file-selector-button{cursor:not-allowed;}
-  /* BGM音量／元動画の音量を横に並べたとき、片方のラベルだけ折り返して2行になると
-     セレクトボックスの開始位置がズレてバランスが悪く見えるため、ラベル欄の高さを
-     2行分そろえておく（テキスト量に関わらず常にセレクトの開始位置が揃う）。 */
-  /* 1カラム化に伴い、旧2カラムベントの高さ揃え用min-heightは不要になったため削除。
-     見出しとボタンの余白も詰める。 */
+  /* 見出しとボタンの余白を詰める。 */
   .bento-bgm .field label{margin-bottom:4px;}
   /* 数値入力のステッパー（＋／－ボタン）。数字をタップで打つ手間を減らすため。
      枠線＋アクセントカラーの丸いピル型ボタンにして、押したときだけ塗りつぶしに
@@ -626,7 +622,7 @@
             <input type="file" id="bgmFile" accept="audio/*" style="margin-top:8px;" disabled>
           </div>
         </div>
-        <div class="row">
+        <div class="row" style="flex-direction:column;">
           <div class="field">
             <label>BGM音量</label>
             <div class="pill-select" id="bgmVolumeGroup">
