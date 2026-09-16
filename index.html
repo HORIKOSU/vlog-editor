@@ -429,15 +429,6 @@
     background:var(--btn-dark-bg); color:#fff; text-decoration:none; font-size:14px; font-weight:800;
   }
   .note{font-size:11px; color:var(--sub); line-height:1.8; margin-top:6px;}
-  /* 見落とされやすい注意事項（容量の上限など）を目立たせるための強調ノート。
-     エラー表示と同じ色（--danger-soft/--error）を使い、アイコン付きの
-     カード状にすることで、ただの補足説明（.note）より視覚的に目に入るようにする。 */
-  .note-warning{
-    display:flex; align-items:flex-start; gap:10px; margin-top:10px; padding:12px 14px;
-    border-radius:14px; background:var(--danger-soft); color:var(--error);
-    font-size:12px; font-weight:700; line-height:1.7;
-  }
-  .note-warning .icon{font-size:16px; flex-shrink:0; line-height:1;}
   .error{color:var(--error); font-size:12px; margin-top:8px; display:none; font-weight:700;}
   /* 「動画を作成する」ボタンを画面下部に追従表示するバー。
      ④作成カード内の本来のボタンは処理中・完了時の詳細表示（プログレスバー・結果動画等）に
@@ -474,11 +465,6 @@
   <p class="lead" style="margin-bottom:14px;">
     動画をアップロードするだけで、指定秒数ずつ自動トリミング → vlogチックな色味を適用 → 1本に自動結合します。
   </p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:28px;">
-    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🔒 処理はブラウザ内だけで完結</span>
-    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">🎞 最大50本まで対応</span>
-    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:var(--accent-dark); font-size:12px; font-weight:700; padding:8px 14px; border-radius:999px;">⏱ 50本で目安20〜30分</span>
-  </div>
 
   <div class="card">
     <h2>撮影のポイント</h2>
@@ -503,6 +489,13 @@
 
   <div class="card">
     <h2>① 動画素材をアップロード</h2>
+    <div class="subhead">注意点</div>
+    <div class="tips-list" style="margin-bottom:18px;">
+      <div class="tip-item"><div class="tip-text">処理はブラウザ内だけで完結します</div></div>
+      <div class="tip-item"><div class="tip-text">動画は最大50本まで対応しています</div></div>
+      <div class="tip-item"><div class="tip-text">50本の場合、作成にかかる時間の目安は20〜30分です</div></div>
+      <div class="tip-item"><div class="tip-text">素材の合計サイズは1.5GBまでを目安にしてください（上限は2GB）。多い・長尺な場合はいくつかのグループに分けて作成するのがおすすめです。</div></div>
+    </div>
     <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="動画ファイルを選択（ドラッグ&ドロップも可能）">
       ここに動画をドラッグ&ドロップ、またはクリックして選択（複数選択可）
       <input type="file" id="fileInput" accept="video/*" multiple>
@@ -513,13 +506,6 @@
     <p class="lead" style="margin:8px 0 0; font-size:12px;">
       たくさん選んだ場合、写真アプリ側の読み込みに時間がかかり、選択画面がすぐに閉じないことがあります。そのまま少し待ってみてください。
     </p>
-    <div class="note-warning">
-      <span class="icon" aria-hidden="true">⚠️</span>
-      <span>
-        素材の合計サイズは1.5GBまでを目安にしてください（上限は2GB）。<br>
-        多い・長尺な場合はいくつかのグループに分けて作成するのがおすすめです。
-      </span>
-    </div>
     <div class="status-badge" id="uploadStatus"></div>
     <ul id="clipList"></ul>
     <div class="button-row">
@@ -610,7 +596,7 @@
 
       <div class="bento-cell bento-bgm">
         <div class="subhead" style="padding-top:0; border-top:none;">BGM（音楽・任意）</div>
-        <div class="row" style="margin-bottom:10px;">
+        <div class="row" style="margin-bottom:22px;">
           <div class="field" style="flex-basis:100%;">
             <label>BGMの選び方</label>
             <div class="pill-select" id="bgmPresetGroup">
@@ -622,7 +608,7 @@
             <input type="file" id="bgmFile" accept="audio/*" style="margin-top:8px;" disabled>
           </div>
         </div>
-        <div class="row" style="flex-direction:column;">
+        <div class="row" style="flex-direction:column; gap:8px;">
           <div class="field">
             <label>BGM音量</label>
             <div class="pill-select" id="bgmVolumeGroup">
