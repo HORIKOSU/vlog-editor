@@ -443,6 +443,16 @@
   .sticky-cta button.primary{margin:0;}
   /* ④作成カードのボタンが画面内に見えている間は、追従バーを隠して二重表示を防ぐ。 */
   .sticky-cta.is-hidden{display:none;}
+  /* スマホ幅では画面が縦に詰まりやすく、各項目の小見出し（.field labelや.subhead）
+     まわりの余白が窮屈に感じられるため、この幅だけ全体的に広げる。
+     BGM音量など個別に詰めている箇所（.bento-bgm .field labelや、インラインstyleで
+     margin-bottom/gapを指定している箇所）はセレクタの優先度が高いため、
+     ここでは影響を受けず意図通り詰まったままになる。 */
+  @media (max-width:600px){
+    .row{margin-bottom:22px;}
+    .field label{margin-bottom:12px;}
+    .subhead{margin:0 0 14px; padding-top:22px;}
+  }
 </style>
 </head>
 <body>
