@@ -79,7 +79,11 @@
   /* ダークテーマ2：黒ベース×ライトグリーンの配色。上のナビー案の構造（bg/card/ink/
      accent-btn-ink等のトークン設計）はそのまま流用し、色相だけを黒×グリーンに
      差し替えている。--successは元々ライトグリーンだったため、--accentと被らない
-     よう据え置きつつ--accent-softのトーンで書体を書き分けている。 */
+     よう据え置きつつ--accent-softのトーンで書体を書き分けている。
+     --line/--neutral-border/--drop-borderは、当初カード背景とほぼ同じ明るさで
+     枠線がほぼ見えなかった（コントラスト比1.2〜1.4:1程度）ため、背景色との
+     コントラスト比が3:1以上になるよう明るく調整した（WCAGのUIコンポーネント
+     境界の目安に合わせた）。 */
   :root[data-theme="dark"]{
     --accent:#6cb87e;
     --accent-dark:#86cf95;
@@ -88,9 +92,9 @@
     --card:#1d211d;
     --ink:#eef2ec;
     --sub:#93a190;
-    --line:#2b322b;
+    --line:#63705f;
     --thumb-bg:#23271f;
-    --drop-border:#4b5c48;
+    --drop-border:#5c6f56;
     --btn-disabled-bg:#262a22;
     --btn-dark-bg:#0b0d0b;
     --accent-btn:#6cb87e;
@@ -99,7 +103,7 @@
     --accent-btn-ink-soft:rgba(16,21,15,.72);
     --error:#f4998a;
     --neutral-bg:#20241e;
-    --neutral-border:#343c31;
+    --neutral-border:#66735f;
     --neutral-ink:#c4cdc0;
     --success:#8fd6ab;
     --success-soft:#203327;
@@ -159,7 +163,7 @@
     padding:24px; margin-bottom:22px; box-shadow:var(--shadow);
     transition:background .2s, border-color .2s;
   }
-  .card h2{font-size:15px; margin:0 0 16px; color:var(--accent-dark); font-weight:800;}
+  .card h2{font-size:18px; margin:0 0 16px; color:var(--accent-dark); font-weight:800;}
   .drop{
     border:2.5px dashed var(--drop-border); border-radius:22px; padding:32px 16px;
     text-align:center; color:var(--sub); font-size:13px; cursor:pointer;
@@ -297,7 +301,7 @@
   .checkbox-field.solo{display:inline-flex; align-items:center;}
   .checkbox-field.solo input{margin-top:0;}
   .subhead{
-    font-size:12px; font-weight:800; color:var(--accent-dark); margin:0 0 10px;
+    font-size:14px; font-weight:800; color:var(--accent-dark); margin:0 0 10px;
     padding-top:16px; border-top:1px solid var(--line);
   }
   .card > .subhead:first-of-type, .card h2 + .subhead{padding-top:0; border-top:none;}
